@@ -1,0 +1,42 @@
+{
+  "configurations": [
+    {
+      "browse": {
+        "databaseFilename": "${default}",
+        "limitSymbolsToIncludedHeaders": false
+      },
+      "includePath": [
+        "/home/choi/catkin_ws/devel/include/**",
+        "/opt/ros/noetic/include/**",
+        "/home/choi/catkin_ws/src/myagv_ros/src/navigation/amcl/include/**",
+        "/home/choi/catkin_ws/src/myagv_ros/src/auto_dock/include/**",
+        "/home/choi/catkin_ws/src/myagv_ros/src/navigation/base_local_planner/include/**",
+        "/home/choi/catkin_ws/src/myagv_ros/src/navigation/carrot_planner/include/**",
+        "/home/choi/catkin_ws/src/myagv_ros/src/navigation/clear_costmap_recovery/include/**",
+        "/home/choi/catkin_ws/src/myagv_ros/src/navigation/costmap_2d/include/**",
+        "/home/choi/catkin_ws/src/myagv_ros/src/navigation/dwa_local_planner/include/**",
+        "/home/choi/catkin_ws/src/myagv_ros/src/navigation/global_planner/include/**",
+        "/home/choi/catkin_ws/src/myagv_ros/src/navigation/map_server/include/**",
+        "/home/choi/catkin_ws/src/myagv_ros/src/navigation/move_base/include/**",
+        "/home/choi/catkin_ws/src/myagv_ros/src/navigation/move_slow_and_clear/include/**",
+        "/home/choi/catkin_ws/src/myagv_ros/src/myagv_odometry/include/**",
+        "/home/choi/catkin_ws/src/myagv_ros/src/myagv_ps2/include/**",
+        "/home/choi/catkin_ws/src/myagv_ros/src/navigation/nav_core/include/**",
+        "/home/choi/catkin_ws/src/myagv_ros/src/navigation/navfn/include/**",
+        "/home/choi/catkin_ws/src/myagv_ros/src/robot_pose_ekf/include/**",
+        "/home/choi/catkin_ws/src/ros_cv_yolo/include/**",
+        "/home/choi/catkin_ws/src/ros_line_tracking/include/**",
+        "/home/choi/catkin_ws/src/myagv_ros/src/navigation/rotate_recovery/include/**",
+        "/home/choi/catkin_ws/src/dressme/src/vision_seg/include/**",
+        "/home/choi/catkin_ws/src/myagv_ros/src/navigation/voxel_grid/include/**",
+        "/usr/include/**"
+      ],
+      "name": "ROS",
+      "intelliSenseMode": "gcc-x64",
+      "compilerPath": "/usr/bin/gcc",
+      "cStandard": "gnu11",
+      "cppStandard": "c++14"
+    }
+  ],
+  "version": 4
+}

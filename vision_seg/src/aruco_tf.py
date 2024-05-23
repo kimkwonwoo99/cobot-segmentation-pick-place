@@ -1,0 +1,92 @@
+#!/usr/bin/env python
+
+import rospy
+import tf
+import cv2
+import numpy as np
+import cv2.aruco as aruco
+from sensor_msgs.msg import CompressedImage
+from cv_bridge import CvBridge
+from geometry_msgs.msg import TransformStamped
+from std_msgs.msg import Int32
+
+class Aruco(object):
+    def __init__(self):
+        self.bridge = CvBridge()
+        self.MARKERLEN = 0.05  # marker length in meter
+        self.DICT_GET = cv2.aruco.Dictionary_get(cv2.aruco.DICT_6X6_250)  # marker 5x5_1000
+        self.ARUCO_PARAMETERS = cv2.aruco.DetectorParameters_create()
+        self.camera_matrix = np.array([[527.43921935, 0, 317.20828396], [0, 531.15346504, 240.4016465], [0, 0, 1]])  # 카메라 행렬로 설정
+        self.dist_coeffs = np.array([[0.20891653, -1.69077085, -0.00999435, -0.00851377, 5.10335346]])  # 왜곡 계수로 설정
+        self.tf_broadcaster = tf.TransformBroadcaster()
+        self.last_detect_position = {i: None for i in range(9)}
+        self.image_sub = None
+        self.image_state = False
+
+    def matrix_to_transform(self, transform_mat):
+        translation_vector = transform_mat[:3, 3]
+        rotation_matrix = transform_mat[:3, :3]
+        quaternion = tf.transformations.quaternion_from_matrix(transform_mat)
+        return translation_vector, quaternion
+
+    def image_callback(self, msg):
+        np_arr = np.frombuffer(msg.data, np.uint8)
+        cv2_img = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+
+        markerCorners, markerIds, rejectedCandidates = cv2.aruco.detectMarkers(cv2_img, self.DICT_GET, parameters=self.ARUCO_PARAMETERS)
+
+        if markerIds is not None and len(markerCorners) > 0:
+            rvecs, tvecs, _ = cv2.aruco.estimatePoseSingleMarkers(markerCorners, self.MARKERLEN, self.camera_matrix, self.dist_coeffs)
+            for i, marker_id in enumerate(markerIds):
+                # Pose estimation
+                rmat, _ = cv2.Rodrigues(rvecs[i])
+                transform_mat = np.eye(4)
+                transform_mat[:3, :3] = rmat
+                transform_mat[:3, 3] = tvecs[i].reshape(-1)
+                original_translation, original_quaternion = self.matrix_to_transform(transform_mat)
+
+                self.last_detect_position[marker_id[0]] = original_translation, original_quaternion
+
+        if self.image_state:  # Check the state before broadcasting
+            for marker_id, transform in self.last_detect_position.items():
+                if transform is not None:
+                    pos, quat = transform
+                    self.tf_broadcaster.sendTransform(
+                        pos,
+                        quat,
+                        rospy.Time.now(),
+                        "marker_{}".format(marker_id),
+                        "cam_lens_link"
+                    )
+
+    def control_image_subscription(self, state):
+        if state and self.image_sub is None:
+            self.image_sub = rospy.Subscriber("/camera/image/compressed", CompressedImage, self.image_callback)
+        elif not state and self.image_sub is not None:
+            self.image_sub.unregister()
+            self.image_sub = None
+
+def callback(msg):
+    if msg.data == 1:
+        if not aruco.image_state:
+            rospy.loginfo("Starting tf publisher")
+            aruco.image_state = True
+            aruco.control_image_subscription(True)
+    elif msg.data == 2:
+        if aruco.image_state:
+            rospy.loginfo("Stopping tf publisher")
+            aruco.image_state = False
+            aruco.control_image_subscription(False)
+
+def matrix_calculation_server():
+    rospy.init_node('matrix_calculation_server')
+    rospy.Subscriber("aruco_seg_start", Int32, callback)
+    rospy.spin()
+
+def main():
+    global aruco
+    aruco = Aruco()
+    matrix_calculation_server()
+
+if __name__ == "__main__":
+    main()
