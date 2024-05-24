@@ -18,11 +18,10 @@ find_package(catkin REQUIRED COMPONENTS
 find_package(OpenCV REQUIRED)
 
 ## Generate messages in the 'msg' folder
-# add_message_files(
-#   FILES
-#   Message1.msg
-#   Message2.msg
-# )
+add_message_files(
+  FILES
+  aruco_center.msg
+)
 
 ## Generate services in the 'srv' folder
 # add_service_files(
@@ -39,10 +38,10 @@ find_package(OpenCV REQUIRED)
 # )
 
 ## Generate added messages and services with any dependencies listed here
-# generate_messages(
-#   DEPENDENCIES
-#   std_msgs  # Or other packages containing msgs
-# )
+generate_messages(
+  DEPENDENCIES
+  std_msgs  # Or other packages containing msgs
+)
 
 ################################################
 ## Declare ROS dynamic reconfigure parameters ##
@@ -74,8 +73,8 @@ find_package(OpenCV REQUIRED)
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
- INCLUDE_DIRS include
- LIBRARIES vision_seg
+#  INCLUDE_DIRS include
+#  LIBRARIES vision_seg
  CATKIN_DEPENDS rospy sensor_msgs message_generation cv_bridge image_transport
 )
 
@@ -105,6 +104,10 @@ catkin_install_python(PROGRAMS src/camera_pub.py
 )
 
 catkin_install_python(PROGRAMS src/seg_tf.py
+DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
+
+catkin_install_python(PROGRAMS src/seg_pose.py
 DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

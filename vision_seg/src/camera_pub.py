@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
-import rospy
-import cv2
+import rospy, cv2
 import numpy as np
 from cv_bridge import CvBridge
 from sensor_msgs.msg import CompressedImage
@@ -9,7 +8,7 @@ from sensor_msgs.msg import CompressedImage
 class CameraPublisher:
     def __init__(self):
         self.bridge = CvBridge()
-        self.image_pub = rospy.Publisher('/camera/image/compressed', CompressedImage, queue_size=1)
+        self.image_pub = rospy.Publisher('/camera/arm/compressed', CompressedImage, queue_size=1)
         self.capture = cv2.VideoCapture('/dev/video0', cv2.CAP_V4L2)
         self.capture.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
         self.capture.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)

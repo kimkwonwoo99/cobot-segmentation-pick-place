@@ -1,14 +1,9 @@
 #!/usr/bin/env python
-import sys
-import rospy
-import moveit_commander
+import sys, rospy, moveit_commander, time, tf, queue
+import geometry_msgs.msg
 from moveit_msgs.msg import MoveItErrorCodes
 from geometry_msgs.msg import PoseStamped
 from std_msgs.msg import Int32
-import geometry_msgs.msg
-import time
-import tf
-import queue
 from cobot_moveit.srv import *
 
 

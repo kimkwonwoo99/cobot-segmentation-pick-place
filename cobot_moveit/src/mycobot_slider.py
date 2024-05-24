@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 # -*- coding:utf-8 -*-
-import math
-import time
-import rospy
+import math, time, rospy
 from sensor_msgs.msg import JointState
 from std_msgs.msg import Int32
 from pymycobot.mycobot import MyCobot

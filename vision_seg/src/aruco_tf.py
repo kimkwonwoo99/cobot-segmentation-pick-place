@@ -1,14 +1,13 @@
-#!/usr/bin/env python
+# !/usr/bin/env python
 
-import rospy
-import tf
-import cv2
+import rospy, tf, cv2
 import numpy as np
 import cv2.aruco as aruco
 from sensor_msgs.msg import CompressedImage
 from cv_bridge import CvBridge
 from geometry_msgs.msg import TransformStamped
 from std_msgs.msg import Int32
+from vision_seg.msg import aruco_center
 
 class Aruco(object):
     def __init__(self):
@@ -19,6 +18,7 @@ class Aruco(object):
         self.camera_matrix = np.array([[527.43921935, 0, 317.20828396], [0, 531.15346504, 240.4016465], [0, 0, 1]])  # 카메라 행렬로 설정
         self.dist_coeffs = np.array([[0.20891653, -1.69077085, -0.00999435, -0.00851377, 5.10335346]])  # 왜곡 계수로 설정
         self.tf_broadcaster = tf.TransformBroadcaster()
+        self.aruco_xy_publisher = rospy.Publisher("arco_cam_xy", aruco_center, queue_size=10)        
         self.last_detect_position = {i: None for i in range(9)}
         self.image_sub = None
         self.image_state = False
@@ -36,8 +36,22 @@ class Aruco(object):
         markerCorners, markerIds, rejectedCandidates = cv2.aruco.detectMarkers(cv2_img, self.DICT_GET, parameters=self.ARUCO_PARAMETERS)
 
         if markerIds is not None and len(markerCorners) > 0:
+            names = []
+            x_points = []
+            y_points = []
             rvecs, tvecs, _ = cv2.aruco.estimatePoseSingleMarkers(markerCorners, self.MARKERLEN, self.camera_matrix, self.dist_coeffs)
             for i, marker_id in enumerate(markerIds):
+                #marker_centor
+                marker_corners = markerCorners[i][0]
+                top_left = marker_corners[0]
+                bottom_right = marker_corners[2]
+
+                # 마커의 중심 좌표 계산
+                center_x = int((top_left[0] + bottom_right[0]) / 2)
+                center_y = int((top_left[1] + bottom_right[1]) / 2)
+                names.append(str(marker_id[0]))
+                x_points.append(center_x)
+                y_points.append(center_y)              
                 # Pose estimation
                 rmat, _ = cv2.Rodrigues(rvecs[i])
                 transform_mat = np.eye(4)
@@ -46,6 +60,14 @@ class Aruco(object):
                 original_translation, original_quaternion = self.matrix_to_transform(transform_mat)
 
                 self.last_detect_position[marker_id[0]] = original_translation, original_quaternion
+            
+            if len(names) == 2 :
+                aruco_msg = aruco_center()
+                aruco_msg.names = names
+                aruco_msg.x_points = x_points
+                aruco_msg.y_points = y_points
+
+                self.aruco_xy_publisher.publish(aruco_msg)
 
         if self.image_state:  # Check the state before broadcasting
             for marker_id, transform in self.last_detect_position.items():
