@@ -15,8 +15,8 @@ class Aruco(object):
         self.MARKERLEN = 0.05  # marker length in meter
         self.DICT_GET = cv2.aruco.Dictionary_get(cv2.aruco.DICT_6X6_250)  # marker 5x5_1000
         self.ARUCO_PARAMETERS = cv2.aruco.DetectorParameters_create()
-        self.camera_matrix = np.array([[527.43921935, 0, 317.20828396], [0, 531.15346504, 240.4016465], [0, 0, 1]])  # 카메라 행렬로 설정
-        self.dist_coeffs = np.array([[0.20891653, -1.69077085, -0.00999435, -0.00851377, 5.10335346]])  # 왜곡 계수로 설정
+        self.camera_matrix = np.array([[542.93802581, 0, 329.25053673], [0, 541.67327024, 256.79448482], [0, 0, 1]])  # 카메라 행렬로 설정
+        self.dist_coeffs = np.array([[0.19266232, -0.79141779, -0.00253703, 0.00613584, 1.04252319]])  # 왜곡 계수로 설정
         self.tf_broadcaster = tf.TransformBroadcaster()
         self.aruco_xy_publisher = rospy.Publisher("arco_cam_xy", aruco_center, queue_size=10)        
         self.last_detect_position = {i: None for i in range(9)}
@@ -25,7 +25,6 @@ class Aruco(object):
 
     def matrix_to_transform(self, transform_mat):
         translation_vector = transform_mat[:3, 3]
-        rotation_matrix = transform_mat[:3, :3]
         quaternion = tf.transformations.quaternion_from_matrix(transform_mat)
         return translation_vector, quaternion
 

@@ -1,11 +1,10 @@
 #!/usr/bin/env python
 
-import rospy, tf, cv2
+import rospy, cv2
 import numpy as np
 from vision_seg.msg import aruco_center
 from sensor_msgs.msg import CompressedImage
 from cv_bridge import CvBridge
-from geometry_msgs.msg import TransformStamped
 from std_msgs.msg import Int32
 from ultralytics import YOLO
 
@@ -14,19 +13,11 @@ model = YOLO("/home/choi/catkin_ws/src/dressme/vision_seg/src/dressme_final.pt")
 class Segment(object):
     def __init__(self):
         self.bridge = CvBridge()
-        self.camera_matrix = np.array([[527.43921935, 0, 317.20828396], [0, 531.15346504, 240.4016465], [0, 0, 1]])  # 카메라 행렬로 설정
-        self.dist_coeffs = np.array([[0.20891653, -1.69077085, -0.00999435, -0.00851377, 5.10335346]])  # 왜곡 계수로 설정
-        self.tf_broadcaster = tf.TransformBroadcaster()
-        self.seg_xy_publisher = rospy.Publisher('/seg_xy', aruco_center, queue_size=10)
-        self.last_detect_position = {i: None for i in range(9)}
+        self.camera_matrix = np.array([[542.93802581, 0, 329.25053673], [0, 541.67327024, 256.79448482], [0, 0, 1]])  # 카메라 행렬로 설정
+        self.dist_coeffs = np.array([[0.19266232, -0.79141779, -0.00253703, 0.00613584, 1.04252319]])  # 왜곡 계수로 설정
+        self.seg_xy_publisher = rospy.Publisher('/seg_cam_xy', aruco_center, queue_size=10)
         self.image_sub = None
         self.image_state = False
-
-    def matrix_to_transform(self, transform_mat):
-        translation_vector = transform_mat[:3, 3]
-        rotation_matrix = transform_mat[:3, :3]
-        quaternion = tf.transformations.quaternion_from_matrix(transform_mat)
-        return translation_vector, quaternion
 
     def image_callback(self, msg):
         global model
@@ -35,8 +26,6 @@ class Segment(object):
         
         undistorted_img = cv2.undistort(cv2_img, self.camera_matrix, self.dist_coeffs)
         results = model(undistorted_img)
-        
-        H,W,_ = undistorted_img.shape
         
         if results:
             names = []
@@ -73,12 +62,12 @@ class Segment(object):
 def callback(msg, segment_img):
     if msg.data == 1:
         if not segment_img.image_state:
-            rospy.loginfo("Starting tf publisher")
+            rospy.loginfo("Starting img segment")
             segment_img.image_state = True
             segment_img.control_image_subscription(True)
     elif msg.data == 2:
         if segment_img.image_state:
-            rospy.loginfo("Stopping tf publisher")
+            rospy.loginfo("Stopping img segment")
             segment_img.image_state = False
             segment_img.control_image_subscription(False)
 
