@@ -11,7 +11,7 @@ reword_list = [0, 0, 0, 0, 0, 0]  # 6개의 요소를 포함하는 리스트로 
 state = True
 mc = None
 data_list = None
-def pid() :
+def proportional_control() :
     global mc, data_list, state
     tolerance = 0.5
     new_angles = list(data_list)  # 현재 각도를 복사하여 새로운 각도 리스트 생성
@@ -65,7 +65,7 @@ def cali_callback(data):
         print("i receive cali_service")
         global state
         state = False
-        pid()
+        proportional_control()
     return True
     
 def gripper_callback(data):
