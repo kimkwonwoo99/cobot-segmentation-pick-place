@@ -49,7 +49,7 @@ move_start_pub = None
 calibrate_service = None
 gripper_service = None
 start_state = True
-robotarm_state = 'end_mode'
+# robotarm_state = 'end_mode'
 hanger_position = queue.Queue()
 
 def cali_service_start() :
@@ -87,19 +87,7 @@ def move_to_pose(pose, ori):
     arm_group.clear_pose_targets()
     time.sleep(1)
 
-def robotarm_main_callback(request) :
-    print("i receive robotarm_action_service")
-    global robotarm_state
-    if request.data == 'start_mode' :
-        move_cobot_and_calib(pose_find_closet_position, pose_closet_orientation)
-        robotarm_state = request.data
-        aruco_seg_start_pub.publish(1)
-        return True
-    elif request.data == 'end_mode' :
-        move_cobot_and_calib(pose_basic_position, pose_basic_orientation)
-        robotarm_state = request.data
-        aruco_seg_start_pub.publish(2)
-        return True
+
 
 def move_cobot_and_calib(xyz, ori) :
     state_check_pub.publish(1)
@@ -174,9 +162,19 @@ def last_callback(request) :
     hanger_position.queue.clear()
     move_to_pose(pose_find_closet_position, pose_closet_orientation)
 
-def start_callback(request) :
-    move_cobot_and_calib(pose_find_closet_position, pose_closet_orientation)
-    
+def robotarm_main_callback(request) :
+    print("i receive robotarm_action_service")      #GUI에서 동작 요청 수신 시
+    global robotarm_state
+    if request.data == 'start_mode' :       #시작, 카메라 촬영 포지션 이동
+        move_cobot_and_calib(pose_find_closet_position, pose_closet_orientation)
+        # robotarm_state = request.data
+        aruco_seg_start_pub.publish(1)      #aruco, seg 시작 명령
+        return True                         #수신완료 리턴
+    elif request.data == 'end_mode' :       #종료, 초기 표지션 이동
+        move_cobot_and_calib(pose_basic_position, pose_basic_orientation)
+        # robotarm_state = request.data
+        aruco_seg_start_pub.publish(2)      #aruco, seg 종료 명령
+        return True                         #수신완료 리턴
     
 def main():
     global state_check_pub, start_state, second_state, aruco_seg_start_pub
