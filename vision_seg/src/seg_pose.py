@@ -54,7 +54,7 @@ class Segment(object):
                 self.seg_xy_publisher.publish(aruco_msg)
     def control_image_subscription(self, state):
         if state and self.image_sub is None:
-            self.image_sub = rospy.Subscriber("/camera/image/compressed", CompressedImage, self.image_callback)
+            self.image_sub = rospy.Subscriber("/camera/arm/compressed", CompressedImage, self.image_callback)
         elif not state and self.image_sub is not None:
             self.image_sub.unregister()
             self.image_sub = None

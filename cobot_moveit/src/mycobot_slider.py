@@ -5,7 +5,7 @@ from sensor_msgs.msg import JointState
 from std_msgs.msg import Int32
 from pymycobot.mycobot import MyCobot
 
-from cobot_moveit.srv import *
+from cobot_moveit.srv import cali_service_msg, grip_service_msg 
 
 reword_list = [0, 0, 0, 0, 0, 0]  # 6개의 요소를 포함하는 리스트로 수정
 state = True
@@ -61,10 +61,11 @@ def state_callback(data):
         print("move stop")
 
 def cali_callback(data):
-    print("i receive cali_service")
-    global state
-    state = False
-    pid()
+    if data.signal == 1 :
+        print("i receive cali_service")
+        global state
+        state = False
+        pid()
     return True
     
 def gripper_callback(data):

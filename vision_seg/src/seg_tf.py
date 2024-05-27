@@ -14,6 +14,7 @@ class Tf_publisher(object):
         self.bridge = CvBridge()
         self.tf_broadcaster = tf.TransformBroadcaster()
         self.aruco_xy_sub = None
+        self.aruco_all_pose = None
         self.seg_xy_sub = None
         self.server_state = False
 
@@ -22,50 +23,53 @@ class Tf_publisher(object):
         quaternion = tf.transformations.quaternion_from_matrix(transform_mat)
         return translation_vector, quaternion
 
-    def image_callback(self, msg):
-        np_arr = np.frombuffer(msg.data, np.uint8)
-        cv2_img = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+    def aruco_xy_callback(self, msg):
+        if len(msg.names) == 2:  # Ensure that two aruco markers are detected
+            if self.aruco_all_pose is None:
+                self.aruco_all_pose = [[] for _ in range(2)]
+            for i in range(len(msg.names)):
+                marker_id = msg.names[i]
+                x = msg.x_points[i]
+                y = msg.y_points[i]
+                
+                listener = tf.TransformListener()
+                marker_frame = "marker_{}".format(marker_id)
+                listener.waitForTransform("cam_lens_link", marker_frame, rospy.Time(0), rospy.Duration(4.0))
+                if listener.canTransform("cam_lens_link", marker_frame, rospy.Time(0)):
+                    (trans, rot) = listener.lookupTransform("cam_lens_link", marker_frame, rospy.Time(0))
+                    self.aruco_all_pose[i] = [marker_id, x, y, trans[0], trans[1], trans[2]]
+                    print("done")
+                print(trans)
+                
 
-
-            for i, marker_id in enumerate(markerIds):
-                #marker_centor
-                marker_corners = markerCorners[i][0]
-                top_left = marker_corners[0]
-                bottom_right = marker_corners[2]
-
-                # 마커의 중심 좌표 계산
-                center_x = int((top_left[0] + bottom_right[0]) / 2)
-                center_y = int((top_left[1] + bottom_right[1]) / 2)
-                names.append(str(marker_id[0]))
-                x_points.append(center_x)
-                y_points.append(center_y)              
-                # Pose estimation
-                rmat, _ = cv2.Rodrigues(rvecs[i])
-                transform_mat = np.eye(4)
-                transform_mat[:3, :3] = rmat
-                transform_mat[:3, 3] = tvecs[i].reshape(-1)
-                original_translation, original_quaternion = self.matrix_to_transform(transform_mat)
-
-                self.last_detect_position[marker_id[0]] = original_translation, original_quaternion
-            
-
-        if self.image_state:  # Check the state before broadcasting
-            for marker_id, transform in self.last_detect_position.items():
-                if transform is not None:
-                    pos, quat = transform
-                    self.tf_broadcaster.sendTransform(
-                        pos,
-                        quat,
-                        rospy.Time.now(),
-                        "marker_{}".format(marker_id),
-                        "cam_lens_link"
-                    )
-
+    def seg_xy_callback(self, msg):
+        if self.aruco_all_pose is not None :
+            print(self.aruco_all_pose)
+            for i in range(len(msg.names)):
+                print(msg)
+                
+                aruco_id = msg.names[i]
+                x = (msg.x_points[i] - self.aruco_all_pose[0][1]) / (self.aruco_all_pose[1][1] - self.aruco_all_pose[0][1])
+                y = (msg.y_points[i] - self.aruco_all_pose[0][2]) / (self.aruco_all_pose[1][2] - self.aruco_all_pose[0][2])
+                tf_x = self.aruco_all_pose[0][3] + x * (self.aruco_all_pose[1][3] - self.aruco_all_pose[0][3])
+                tf_y = self.aruco_all_pose[0][4] + y * (self.aruco_all_pose[1][4] - self.aruco_all_pose[0][4])
+                tf_z = (self.aruco_all_pose[0][5] + self.aruco_all_pose[1][5]) / 2
+                print(aruco_id, x, y, tf_x, tf_y, tf_z)
+                seg_translation, seg_quaternion = self.matrix_to_transform(np.array([[1, 0, 0, tf_x], [0, 1, 0, tf_y], [0, 0, 1, tf_z], [0, 0, 0, 1]]))
+                self.tf_broadcaster.sendTransform(
+                    seg_translation,
+                    seg_quaternion,
+                    rospy.Time.now(),
+                    "seg_{}".format(aruco_id),
+                    "cam_lens_link"
+                )
+                
     def control_xy_subscribtion(self, state):
-        if state and (self.seg_xy_sub is None or self.aruco_xy_sub is None):
-            self.seg_xy_sub = rospy.Subscriber("seg_cam_xy", aruco_center, self.seg_callback)
+        if state:
             self.aruco_xy_sub = rospy.Subscriber("arco_cam_xy", aruco_center, self.aruco_xy_callback)
-        elif not state and self.seg_xy_sub is not None and self.aruco_xy_sub is not None:
+            self.seg_xy_sub = rospy.Subscriber("seg_cam_xy", aruco_center, self.seg_xy_callback)
+            
+        else:
             self.seg_xy_sub.unregister()
             self.aruco_xy_sub.unregister()
             self.seg_xy_sub = None

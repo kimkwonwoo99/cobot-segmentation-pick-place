@@ -8,7 +8,7 @@ from sensor_msgs.msg import CompressedImage
 class CameraPublisher:
     def __init__(self):
         self.bridge = CvBridge()
-        self.image_pub = rospy.Publisher('/camera/arm/compressed', CompressedImage, queue_size=1)
+        self.image_pub = rospy.Publisher('camera/arm/compressed', CompressedImage, queue_size=1)
         self.capture = cv2.VideoCapture('/dev/video0', cv2.CAP_V4L2)
         self.capture.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
         self.capture.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
@@ -32,7 +32,7 @@ class CameraPublisher:
                 self.image_pub.publish(compressed_image_msg)
 
 def main():
-    rospy.init_node('camera_publisher')
+    rospy.init_node('camera_arm_publisher')
     # CameraPublisher 인스턴스 생성
     camera_publisher = CameraPublisher()
     camera_publisher.publish_image()
