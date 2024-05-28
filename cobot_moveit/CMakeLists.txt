@@ -64,6 +64,7 @@ add_service_files(
   main_service_msg.srv
   grip_service_msg.srv
   cali_service_msg.srv
+  second_service_msg.srv
 )
 
 ## Generate actions in the 'action' folder

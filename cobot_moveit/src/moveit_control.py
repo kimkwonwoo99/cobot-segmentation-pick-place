@@ -48,8 +48,7 @@ aruco_seg_start_pub = None
 move_start_pub = None
 calibrate_service = None
 gripper_service = None
-start_state = True
-# robotarm_state = 'end_mode'
+start_state = False
 hanger_position = queue.Queue()
 
 def cali_service_start() :
@@ -106,8 +105,7 @@ def gripper_move(val) :
     except rospy.ServiceException as e:
         print("Service call failed: %s" % e)
     
-def find_tf_position(name) :
-    global hanger_position
+def get_tf_position(name) :
     listener = tf.TransformListener()
     marker_frame = name
     listener.waitForTransform("base", marker_frame, rospy.Time(0), rospy.Duration(4.0))
@@ -118,75 +116,68 @@ def find_tf_position(name) :
             'y': trans[1],
             'z': trans[2]
         }
-        hanger_position.put(pose)
         return pose
     return None
 
-def pick_callback(request) :
-    
-    find_position  = find_tf_position(request.name)
-    tmp_position = [find_position['x'] + 0.05, find_position['y'], find_position['z']]
-    move_cobot_and_calib(tmp_position, pose_closet_orientation)
-    
+
+def second_callback(request) :
+    global hanger_position
+    find_pose = get_tf_position(request.class_name)
+    tmp_pose = [find_pose['x'] + 0.05, find_pose['y'], find_pose['z']]
+    move_to_pose(tmp_pose, pose_closet_orientation)
     gripper_move(100)
     
-    move_cobot_and_calib(find_position, pose_closet_orientation)
-    
+    #오브젝트 집을곳까지 가는 함수(? 아직 미구현)
+    #if mode == put일 시, 큐에 저장
     gripper_move(0)
     
-    move_cobot_and_calib(tmp_position, pose_closet_orientation)
-    
+    move_to_pose(tmp_pose, pose_closet_orientation)
     move_cobot_and_calib(pose_put_cloth_position, pose_person_orientation)
-    
     gripper_move(50)
+    #여기까지가 집고 사람한테 주기
     
-    return True
-    
-def last_callback(request) :
-    global hanger_position
-    hanger_pose = hanger_position.get()
-    if request.modename == 'put_in_mode' :
+    if request.mode == 'put' :
+        hanger_pose = hanger_position.get()
         gripper_move(0)
         
-        move_to_pose(pose_put_cloth_position, pose_closet_orientation)
+        move_to_pose(pose_find_closet_position, pose_closet_orientation)
         
-        move_to_pose(hanger_pose, pose_closet_orientation)
+        #hanger_pose로 이동하기(아직 미구현)
         
         gripper_move(100)
         
-        tmp_pose = [hanger_pose['x'] + 0.05, hanger_pose['y'], hanger_pose['z']]
-        move_to_pose(tmp_pose, pose_closet_orientation)
+        #밖으로 빠져나오기(미구현)
         
         gripper_move(50)
-        
-    hanger_position.queue.clear()
-    move_to_pose(pose_find_closet_position, pose_closet_orientation)
+        hanger_position.queue.clear()
 
 def robotarm_main_callback(request) :
     print("i receive robotarm_action_service")      #GUI에서 동작 요청 수신 시
-    global robotarm_state
+    global start_state
     if request.data == 'start_mode' :       #시작, 카메라 촬영 포지션 이동
         move_cobot_and_calib(pose_find_closet_position, pose_closet_orientation)
-        # robotarm_state = request.data
         aruco_seg_start_pub.publish(1)      #aruco, seg 시작 명령
+        start_state = True
         return True                         #수신완료 리턴
     elif request.data == 'end_mode' :       #종료, 초기 표지션 이동
         move_cobot_and_calib(pose_basic_position, pose_basic_orientation)
         # robotarm_state = request.data
         aruco_seg_start_pub.publish(2)      #aruco, seg 종료 명령
+        start_state = False
         return True                         #수신완료 리턴
     
 def main():
-    global state_check_pub, start_state, second_state, aruco_seg_start_pub
+    global state_check_pub, start_state, aruco_seg_start_pub
 
     # ROS 노드 초기화
     rospy.init_node('dressme_moveit_node', anonymous=True)
     state_check_pub = rospy.Publisher("state_check", Int32, queue_size=10)
     aruco_seg_start_pub = rospy.Publisher("aruco_seg_start", Int32, queue_size=10)
     
-    main_server = rospy.Service("robotarm_action_service", main_service_msg, robotarm_main_callback)
-    second_service = rospy.Service("pick_service", main_service_msg, pick_callback)
-    thrid_service = rospy.Service("last_service", main_service_msg, last_callback)
+    if start_state is False:
+        main_server = rospy.Service("robotarm_action_service", main_service_msg, robotarm_main_callback)
+    else:
+        second_service = rospy.Service("second_service", second_service_msg, second_callback)
     
     rospy.spin()
 
