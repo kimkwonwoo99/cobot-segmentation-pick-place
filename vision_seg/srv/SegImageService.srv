@@ -1,0 +1,4 @@
+sensor_msgs/Image image
+string class_name
+---
+bool success

@@ -26,7 +26,7 @@ pose_basic_orientation = ({
     'x' : 0.0,
     'y' : 0.7071080795300609,
     'z' : -0.7071080795300609,
-    'w' : 1.0
+    'w' : 0.0
 })
 pose_find_closet_position = ({
     'x' : 0.0,
@@ -50,12 +50,13 @@ calibrate_service = None
 gripper_service = None
 start_state = False
 hanger_position = queue.Queue()
+second_put_mode = None
 
 def cali_service_start() :
     global calibrate_service
     rospy.wait_for_service('calibrate_service')
     try :
-        calibrate_service = rospy.ServiceProxy('calibrate_service', cali_service_msg)
+        calibrate_service = rospy.ServiceProxy('calibrate_service', Int32)
         calibrate_service(1)
         
     except rospy.ServiceException as e:
@@ -98,7 +99,7 @@ def gripper_move(val) :
     global gripper_service
     rospy.wait_for_service('gripper_service')
     try :
-        gripper_service = rospy.ServiceProxy('gripper_service', grip_service_msg)
+        gripper_service = rospy.ServiceProxy('gripper_service', Int32)
         gripper_service(val)
         print("i return gripper_service")
         
@@ -121,7 +122,8 @@ def get_tf_position(name) :
 
 
 def second_callback(request) :
-    global hanger_position
+    global hanger_position, second_put_mode
+
     find_pose = get_tf_position(request.class_name)
     tmp_pose = [find_pose['x'] + 0.05, find_pose['y'], find_pose['z']]
     move_to_pose(tmp_pose, pose_closet_orientation)
@@ -129,56 +131,83 @@ def second_callback(request) :
     
     #오브젝트 집을곳까지 가는 함수(? 아직 미구현)
     #if mode == put일 시, 큐에 저장
+    
     gripper_move(0)
     
     move_to_pose(tmp_pose, pose_closet_orientation)
     move_cobot_and_calib(pose_put_cloth_position, pose_person_orientation)
     gripper_move(50)
-    #여기까지가 집고 사람한테 주기
+    #여기까지가 집고 사람한테 
     
     if request.mode == 'put' :
-        hanger_pose = hanger_position.get()
-        gripper_move(0)
+        second_put_mode = True
         
-        move_to_pose(pose_find_closet_position, pose_closet_orientation)
+    
+    rospy.loginfo("Returning success: %s (type: %s)", True, type(True))        
+    return second_service_msgResponse()  # 수신완료 리턴
+    
+def third_callback(request) :
+    
+    
         
-        #hanger_pose로 이동하기(아직 미구현)
-        
-        gripper_move(100)
-        
-        #밖으로 빠져나오기(미구현)
-        
-        gripper_move(50)
-        hanger_position.queue.clear()
+    hanger_pose = hanger_position.get()
+    gripper_move(0)
+    
+    move_to_pose(pose_find_closet_position, pose_closet_orientation)
+    
+    #hanger_pose로 이동하기(아직 미구현)
+    
+    gripper_move(100)
+    
+    #밖으로 빠져나오기(미구현)
+    
+    gripper_move(50)
+    hanger_position.queue.clear()
+    move_to_pose(pose_find_closet_position, pose_closet_orientation)
+    
+    rospy.loginfo("Returning success: %s (type: %s)", 1, type(1))        
+    return Int32(1)  # 수신완료 리턴
+    
 
 def robotarm_main_callback(request) :
     print("i receive robotarm_action_service")      #GUI에서 동작 요청 수신 시
     global start_state
-    if request.data == 'start_mode' :       #시작, 카메라 촬영 포지션 이동
+    if request.mode == 'start_mode' :       #시작, 카메라 촬영 포지션 이동
         move_cobot_and_calib(pose_find_closet_position, pose_closet_orientation)
         aruco_seg_start_pub.publish(1)      #aruco, seg 시작 명령
         start_state = True
-        return True                         #수신완료 리턴
-    elif request.data == 'end_mode' :       #종료, 초기 표지션 이동
+        success = True
+    elif request.mode == 'end_mode' :       #종료, 초기 표지션 이동
         move_cobot_and_calib(pose_basic_position, pose_basic_orientation)
-        # robotarm_state = request.data
         aruco_seg_start_pub.publish(2)      #aruco, seg 종료 명령
         start_state = False
-        return True                         #수신완료 리턴
+        success = True
+    else:
+        success = False  # 요청이 잘못된 경우
     
+    rospy.loginfo("Returning success: %s (type: %s)", success, type(success))        
+    return main_service_msgResponse(success)  # 수신완료 리턴
+
 def main():
-    global state_check_pub, start_state, aruco_seg_start_pub
+    global state_check_pub, start_state, aruco_seg_start_pub, second_put_mode
 
     # ROS 노드 초기화
     rospy.init_node('dressme_moveit_node', anonymous=True)
     state_check_pub = rospy.Publisher("state_check", Int32, queue_size=10)
     aruco_seg_start_pub = rospy.Publisher("aruco_seg_start", Int32, queue_size=10)
     
-    if start_state is False:
-        main_server = rospy.Service("robotarm_action_service", main_service_msg, robotarm_main_callback)
-    else:
-        second_service = rospy.Service("second_service", second_service_msg, second_callback)
+    main_server = rospy.Service("robotarm_action_service", main_service_msg, robotarm_main_callback)
     
+    if start_state is True :
+        second_service = rospy.Service("second_service", second_service_msg, second_callback)
+        if second_put_mode is True :
+            rospy.wait_for_service("capture_image_service")
+            try :
+                capture_img_srv = rospy.ServiceProxy("capture_image_service", second_service_msg)
+                capture_img_srv(1)
+            except rospy.ServiceException as e:
+                print("Service call failed: %s" % e)
+        third_service = rospy.Service("third_service", Int32, third_callback)
     rospy.spin()
 
 if __name__ == '__main__':

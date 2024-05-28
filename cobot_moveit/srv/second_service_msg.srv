@@ -1,4 +1,6 @@
 string mode
 string class_name
 ---
-bool return
+bool success
+
+

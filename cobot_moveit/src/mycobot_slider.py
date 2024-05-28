@@ -5,7 +5,7 @@ from sensor_msgs.msg import JointState
 from std_msgs.msg import Int32
 from pymycobot.mycobot import MyCobot
 
-from cobot_moveit.srv import cali_service_msg, grip_service_msg 
+from cobot_moveit.srv import * 
 
 reword_list = [0, 0, 0, 0, 0, 0]  # 로봇암 이동 시, 전 값과의 오차를 저장하기 위한 리스트
 state = True
@@ -61,25 +61,25 @@ def state_callback(data):
         print("move stop")
 
 def cali_callback(data):
-    if data.signal == 1 :
+    if data.data == 1 :
         print("i receive cali_service")
         global state
         state = False
         proportional_control()
-    return True
+    return Int32(1)
     
 def gripper_callback(data):
     print("i receive gripper_service")
     mc.set_gripper_mode(0)
     mc.set_eletric_gripper(0)
-    mc.set_gripper_value(data.value,50)
-    
+    mc.set_gripper_value(data.data,50)
+        
     while True:
         gripper_value = mc.get_gripper_value()
-        if gripper_value == data:
+        if gripper_value == data.data:
             break
-    rospy.loginfo("gripper value is %d", data.value)
-    return True
+    rospy.loginfo("gripper value is %d", data.data)
+    return Int32(1)
 
 def listener():
     global mc
@@ -96,10 +96,10 @@ def listener():
     rospy.Subscriber("state_check", Int32 , state_callback)
     
     #수신하는 joint_state와 실제 로봇암을 일치시켜주기 위한 서비스
-    rospy.Service("calibrate_service", cali_service_msg , cali_callback)
+    rospy.Service("calibrate_service", Int32 , cali_callback)
     
     #그리퍼의 동작값을 수신하고, 완료를 리턴하는 서비스
-    rospy.Service("gripper_service", grip_service_msg , gripper_callback)
+    rospy.Service("gripper_service", Int32 , gripper_callback)
     
     time.sleep(0.02)
     mc.set_fresh_mode(1)
