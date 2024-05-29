@@ -20,6 +20,7 @@ class Segment(object):
         self.image_sub = None
         self.image_state = False
         self.camera_mode = 'xy_mode'
+        self.image_captured = False
 
 
 
@@ -71,7 +72,7 @@ class Segment(object):
                                 rospy.wait_for_service('seg_image_service')
                                 try :
                                     seg_image_service = rospy.ServiceProxy('seg_image_service', SegImageService)
-                                    response = seg_image_service(SegImageServiceRequest(image=image_msg, class_name=str(data=cls_name)))
+                                    response = seg_image_service(image=image_msg, class_name=str(data=cls_name))
                                     if response.success == True:
                                         print("Image accepted, switching to xy_mode")
                                         self.camera_mode = 'xy_mode'
@@ -97,15 +98,10 @@ class Segment(object):
             self.image_sub.unregister()
             self.image_sub = None
             
-            
-    def image_service_callback(self, msg):
-        # 서비스 요청에 따라 이미지 캡처 및 퍼블리시
-        if msg.data == 1:
-            self.camera_mode = 'seg_pub_mode'
-            
-        if self.camera_mode =='xy_mode' :
-            return Int32(1)
         
+def capture_callback(msg, segment_img):
+    if msg.data == 1 :
+        segment_img.camera_mode = 'seg_pub_mode'
         
 def callback(msg, segment_img):
     if msg.data == 1:
@@ -123,7 +119,7 @@ def callback(msg, segment_img):
 def segment_server(segment_img):
     rospy.init_node('yolo_segment_server')
     rospy.Subscriber("aruco_seg_start", Int32, callback, callback_args=segment_img)
-    rospy.Service("capture_image_service", Int32, segment_img.image_service_callback)
+    rospy.Subscriber("capture_start_topic", Int32, capture_callback, callback_args=segment_img)
     rospy.spin()
 
 def main():

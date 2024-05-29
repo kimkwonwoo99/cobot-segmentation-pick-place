@@ -82,7 +82,7 @@ def callback(msg, tf_publisher):
             tf_publisher.server_state = True
             tf_publisher.control_xy_subscribtion(True)
     elif msg.data == 2:
-        if aruco.image_state:
+        if tf_publisher.server_state:
             rospy.loginfo("Stopping tf publisher")
             tf_publisher.server_state = False
             tf_publisher.control_xy_subscribtion(False)

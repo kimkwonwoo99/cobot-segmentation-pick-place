@@ -56,7 +56,7 @@ def cali_service_start() :
     global calibrate_service
     rospy.wait_for_service('calibrate_service')
     try :
-        calibrate_service = rospy.ServiceProxy('calibrate_service', Int32)
+        calibrate_service = rospy.ServiceProxy('calibrate_service', basic_service)
         calibrate_service(1)
         
     except rospy.ServiceException as e:
@@ -99,7 +99,7 @@ def gripper_move(val) :
     global gripper_service
     rospy.wait_for_service('gripper_service')
     try :
-        gripper_service = rospy.ServiceProxy('gripper_service', Int32)
+        gripper_service = rospy.ServiceProxy('gripper_service', basic_service)
         gripper_service(val)
         print("i return gripper_service")
         
@@ -120,55 +120,57 @@ def get_tf_position(name) :
         return pose
     return None
 
-
-def second_callback(request) :
-    global hanger_position, second_put_mode
-
-    find_pose = get_tf_position(request.class_name)
-    tmp_pose = [find_pose['x'] + 0.05, find_pose['y'], find_pose['z']]
-    move_to_pose(tmp_pose, pose_closet_orientation)
-    gripper_move(100)
-    
-    #오브젝트 집을곳까지 가는 함수(? 아직 미구현)
-    #if mode == put일 시, 큐에 저장
-    
-    gripper_move(0)
-    
-    move_to_pose(tmp_pose, pose_closet_orientation)
-    move_cobot_and_calib(pose_put_cloth_position, pose_person_orientation)
-    gripper_move(50)
-    #여기까지가 집고 사람한테 
-    
-    if request.mode == 'put' :
-        second_put_mode = True
-        
-    
-    rospy.loginfo("Returning success: %s (type: %s)", True, type(True))        
-    return second_service_msgResponse()  # 수신완료 리턴
-    
 def third_callback(request) :
+    global hanger_position
     
-    
-        
     hanger_pose = hanger_position.get()
-    gripper_move(0)
+    gripper_move(10)
     
-    move_to_pose(pose_find_closet_position, pose_closet_orientation)
     
     #hanger_pose로 이동하기(아직 미구현)
+    move_cobot_and_calib(hanger_pose, pose_closet_orientation)
     
-    gripper_move(100)
+    # gripper_move(100)
     
     #밖으로 빠져나오기(미구현)
     
     gripper_move(50)
     hanger_position.queue.clear()
-    move_to_pose(pose_find_closet_position, pose_closet_orientation)
+    move_cobot_and_calib(pose_find_closet_position, pose_closet_orientation)
     
-    rospy.loginfo("Returning success: %s (type: %s)", 1, type(1))        
-    return Int32(1)  # 수신완료 리턴
-    
+    rospy.loginfo("Returning success: %s (type: %s)", True, type(True))        
+    return basic_serviceResponse(True)  # 수신완료 리턴
 
+def second_callback(request) :
+    global hanger_position, second_put_mode
+    print("i return second_service")
+    find_pose = get_tf_position(request.class_name)
+    print(find_pose)
+    tmp_pose = {
+        'x': find_pose['x'] + 0.1,
+        'y': find_pose['y'],
+        'z': find_pose['z']
+    }
+    print(tmp_pose)
+    move_cobot_and_calib(tmp_pose, pose_closet_orientation)
+    gripper_move(100)
+    hanger_position.put(tmp_pose)
+    # #오브젝트 집을곳까지 가는 함수(? 아직 미구현)
+    # #마지막 위치 큐에 저장
+    
+    gripper_move(10)
+    
+    move_cobot_and_calib(tmp_pose, pose_closet_orientation)
+    move_cobot_and_calib(pose_put_cloth_position, pose_person_orientation)
+    gripper_move(50)
+    # #여기까지가 집고 사람한테 
+    
+    # if request.mode == 'put' :
+    #     second_put_mode = True
+    
+    rospy.loginfo("Returning success: %s (type: %s)", True, type(True))        
+    return second_service_msgResponse(True)  # 수신완료 리턴
+    
 def robotarm_main_callback(request) :
     print("i receive robotarm_action_service")      #GUI에서 동작 요청 수신 시
     global start_state
@@ -197,17 +199,10 @@ def main():
     aruco_seg_start_pub = rospy.Publisher("aruco_seg_start", Int32, queue_size=10)
     
     main_server = rospy.Service("robotarm_action_service", main_service_msg, robotarm_main_callback)
+    second_service = rospy.Service("second_service", second_service_msg, second_callback)
+    third_service = rospy.Service("third_service",basic_service, third_callback)
     
-    if start_state is True :
-        second_service = rospy.Service("second_service", second_service_msg, second_callback)
-        if second_put_mode is True :
-            rospy.wait_for_service("capture_image_service")
-            try :
-                capture_img_srv = rospy.ServiceProxy("capture_image_service", second_service_msg)
-                capture_img_srv(1)
-            except rospy.ServiceException as e:
-                print("Service call failed: %s" % e)
-        third_service = rospy.Service("third_service", Int32, third_callback)
+    
     rospy.spin()
 
 if __name__ == '__main__':

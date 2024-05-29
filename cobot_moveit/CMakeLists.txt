@@ -62,8 +62,7 @@ find_package(catkin REQUIRED COMPONENTS
 add_service_files(
   FILES
   main_service_msg.srv
-  grip_service_msg.srv
-  cali_service_msg.srv
+  basic_service.srv
   second_service_msg.srv
 )
 
