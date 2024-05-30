@@ -19,9 +19,10 @@ class Aruco(object):
         self.dist_coeffs = np.array([[0.19266232, -0.79141779, -0.00253703, 0.00613584, 1.04252319]])  # 왜곡 계수로 설정
         self.tf_broadcaster = tf.TransformBroadcaster()
         self.aruco_xy_publisher = rospy.Publisher("arco_cam_xy", aruco_center, queue_size=10)        
-        self.last_detect_position = {i: None for i in range(9)}
+        self.last_detect_position = {}
         self.image_sub = None
         self.image_state = False
+        self.find_two_markers = False
 
     def matrix_to_transform(self, transform_mat):
         translation_vector = transform_mat[:3, 3]
@@ -65,10 +66,12 @@ class Aruco(object):
                 aruco_msg.names = names
                 aruco_msg.x_points = x_points
                 aruco_msg.y_points = y_points
-
+                self.find_two_markers = True
                 self.aruco_xy_publisher.publish(aruco_msg)
+            else :
+                self.find_two_markers = False
 
-        if self.image_state:  # Check the state before broadcasting
+        if self.image_state and self.find_two_markers:  # Check the state before broadcasting
             for marker_id, transform in self.last_detect_position.items():
                 if transform is not None:
                     pos, quat = transform

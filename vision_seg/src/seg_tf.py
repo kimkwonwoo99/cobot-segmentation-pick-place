@@ -40,6 +40,8 @@ class Tf_publisher(object):
                     self.aruco_all_pose[i] = [marker_id, x, y, trans[0], trans[1], trans[2]]
                     print("done")
                 print(trans)
+        else :
+            self.aruco_all_pose = None
                 
 
     def seg_xy_callback(self, msg):

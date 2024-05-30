@@ -124,7 +124,7 @@ def third_callback(request) :
     global hanger_position
     
     hanger_pose = hanger_position.get()
-    gripper_move(10)
+    gripper_move(30)
     
     
     #hanger_pose로 이동하기(아직 미구현)
@@ -134,7 +134,7 @@ def third_callback(request) :
     
     #밖으로 빠져나오기(미구현)
     
-    gripper_move(50)
+    gripper_move(75)
     hanger_position.queue.clear()
     move_cobot_and_calib(pose_find_closet_position, pose_closet_orientation)
     
@@ -158,11 +158,11 @@ def second_callback(request) :
     # #오브젝트 집을곳까지 가는 함수(? 아직 미구현)
     # #마지막 위치 큐에 저장
     
-    gripper_move(10)
+    gripper_move(30)
     
     move_cobot_and_calib(tmp_pose, pose_closet_orientation)
     move_cobot_and_calib(pose_put_cloth_position, pose_person_orientation)
-    gripper_move(50)
+    gripper_move(75)
     # #여기까지가 집고 사람한테 
     
     # if request.mode == 'put' :

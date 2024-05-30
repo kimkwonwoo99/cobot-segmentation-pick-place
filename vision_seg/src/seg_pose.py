@@ -21,6 +21,7 @@ class Segment(object):
         self.image_state = False
         self.camera_mode = 'xy_mode'
         self.image_captured = False
+        self.image_buffer = None
 
 
 
@@ -33,63 +34,72 @@ class Segment(object):
         results = model(undistorted_img)
         
         if results:
-                names = []
-                x_points = []
-                y_points = []
-                for result in results:
-                    if result.masks:  # 이 조건을 확인
-                        if self.camera_mode == 'xy_mode' :
-                            for box in result.boxes:
-                                boxes = box.cpu().numpy()
-                                class_id = int(boxes.cls[0])
-                                class_conf = boxes.conf
+            names = []
+            x_points = []
+            y_points = []
+            for result in results:
+                if result.masks:  # 이 조건을 확인
+                    for j, mask in enumerate(result.masks.data) :
+                        mask = mask.cpu().numpy()
+                        class_id = int(result.boxes.cls[j])
+                        confidences = result.boxes.conf[j]
+                        cls_name = model.names[class_id]
+                        if confidences > 0.7 :
+                            rgba_img = np.zeros((H, W, 4), dtype=np.uint8)
+                        
+                            # 마스크 리사이징과 투명도 적용
+                            mask_resized = cv2.resize(mask, (W, H))
+                            mask_3d = (mask_resized > 0.5).astype(np.uint8)  # 마스크 임계값 조정
+                        
+                            # 객체의 픽셀만 추출
+                            for c in range(3):  # RGB 채널 복사
+                                rgba_img[:, :, c] = undistorted_img[:, :, c] * mask_3d
+
+                            rgba_img[:, :, 3] = mask_3d * 255  # 알파 채널 적용(투명도)
+                            self.image_buffer = rgba_img
+                            if self.camera_mode == 'xy_mode' :
+                                center_x = int((result.boxes.xyxy[j][0] + result.boxes.xyxy[j][2])/2)
+                                center_y = int((result.boxes.xyxy[j][1] + result.boxes.xyxy[j][3])/2)
+                                names.append(str(cls_name))
+                                x_points.append(center_x)
+                                y_points.append(center_y)
+                                    
+                                print(f"Object class: {cls_name}, Center: ({center_x}, {center_y}), Confidence: {confidences}")
+
+                                    # 중심점 표시
+                                # cv2.circle(rgba_img, (center_x, center_y), 5, (255, 0, 0, 255), -1)
+                        
+                            elif self.camera_mode == 'seg_pub_mode' and self.image_buffer is not None :
+                                # rgba_img를 압축된 이미지로 변환
+                                _, compressed_img = cv2.imencode('.jpg', self.image_buffer)
+                                compressed_img_msg = CompressedImage()
+                                compressed_img_msg.header.stamp = rospy.Time.now()
+                                compressed_img_msg.format = "jpeg"
+                                compressed_img_msg.data = np.array(compressed_img).tostring()
                                 
-                                box_x = int(boxes.xyxy[0][0] + boxes.xyxy[0][2])/2
-                                box_y = int(boxes.xyxy[0][1] + boxes.xyxy[0][3])/2
-                                print(box_x, box_y)
-                                names.append(str(class_id))
-                                x_points.append(box_x)
-                                y_points.append(box_y)
-                                
-                        elif self.camera_mode == 'seg_pub_mode' :
-                            for j, mask in enumerate(result.masks.data):
-                                mask = mask.cpu().numpy()
-                                cls_id = int(result[0].boxes[j].cls.item())
-                                cls_name = model.names[cls_id]  
-                                # RGBA 이미지 생성
-                                rgba_img = np.zeros((H, W, 4), dtype=np.uint8)
-
-                                # 마스크 리사이징과 투명도 적용
-                                mask_resized = cv2.resize(mask, (W, H))
-                                mask_3d = (mask_resized > 0.5).astype(np.uint8)  # 마스크 임계값 조정
-
-                                # 객체의 픽셀만 추출
-                                for c in range(3):  # RGB 채널 복사
-                                    rgba_img[:, :, c] = undistorted_img[:, :, c] * mask_3d
-
-                                rgba_img[:, :, 3] = mask_3d * 255  # 알파 채널 적용(투명도)
-                                image_msg = self.bridge.cv2_to_imgmsg(rgba_img, "rgba8")
                                 rospy.wait_for_service('seg_image_service')
-                                try :
+                                try:
                                     seg_image_service = rospy.ServiceProxy('seg_image_service', SegImageService)
-                                    response = seg_image_service(image=image_msg, class_name=str(data=cls_name))
-                                    if response.success == True:
-                                        print("Image accepted, switching to xy_mode")
+                                    segrequest = SegImageServiceRequest()
+                                    segrequest.image = compressed_img_msg
+                                    segrequest.class_name = cls_name
+                                    response = seg_image_service(segrequest)
+                                    if response.success:
+                                        print("이미지 수락됨, xy_mode로 전환")
+                                        self.image_buffer = None
                                         self.camera_mode = 'xy_mode'
-                                        return
                                     else:
-                                        print("Image not accepted, retrying...")
+                                        self.image_buffer = None
+                                        print("이미지가 수락되지 않음, 재시도 중...")
                                 except rospy.ServiceException as e:
-                                    print("Service call failed: %s" % e)                
-                if len(names) > 0:
-                    aruco_msg = aruco_center()
-                    aruco_msg.names = names
-                    aruco_msg.x_points = x_points
-                    aruco_msg.y_points = y_points
+                                    print("서비스 호출 실패: %s" % e)
+            if len(names) > 0:
+                aruco_msg = aruco_center()
+                aruco_msg.names = names
+                aruco_msg.x_points = x_points
+                aruco_msg.y_points = y_points
 
-                    self.seg_xy_publisher.publish(aruco_msg)
-
-                                
+                self.seg_xy_publisher.publish(aruco_msg)
                 
     def control_image_subscription(self, state):
         if state and self.image_sub is None:
@@ -98,9 +108,9 @@ class Segment(object):
             self.image_sub.unregister()
             self.image_sub = None
             
-        
 def capture_callback(msg, segment_img):
     if msg.data == 1 :
+        print("i subscribed for capture")
         segment_img.camera_mode = 'seg_pub_mode'
         
 def callback(msg, segment_img):

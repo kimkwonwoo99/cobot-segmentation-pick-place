@@ -6,6 +6,10 @@ from std_msgs.msg import Int32
 from pymycobot.mycobot import MyCobot
 
 from cobot_moveit.srv import * 
+# from keras.models import load_model
+
+# 모델 로드
+# model = load_model('/home/choi/catkin_ws/src/dressme/cobot_moveit/src/my_model3')
 
 reword_list = [0, 0, 0, 0, 0, 0]  # 로봇암 이동 시, 전 값과의 오차를 저장하기 위한 리스트
 state = True
@@ -42,10 +46,12 @@ def callback(data):
         for index, value in enumerate(data.position):         #라디안으로 수신한 값을, angle로 변경.
             radians_to_angles = round(math.degrees(value), 2)
             data_list.append(radians_to_angles)
+        # predicted_angles = model.predict([data_list])
         print("data_list", data_list)
         for i in range(6):
             tmp_list[i] = data_list[i] + reword_list[i]     #직전값에서 생성한 보상값을 더함.
         print("sub_angles", tmp_list)
+        # mc.send_angles(predicted_angles.tolist()[0], 40)  # numpy 배열을 리스트로 변환하여 전달        
         mc.send_angles(tmp_list, 40)                        #수정된 리스트를 로봇암에 전송
         time.sleep(0.03)
         get_angle_list = mc.get_angles()
