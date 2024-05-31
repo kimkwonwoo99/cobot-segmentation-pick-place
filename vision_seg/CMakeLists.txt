@@ -26,6 +26,7 @@ add_message_files(
 ## Generate services in the 'srv' folder
 add_service_files(
   FILES
+  find_tf_service.srv
   SegImageService.srv
 )
 

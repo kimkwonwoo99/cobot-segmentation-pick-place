@@ -31,15 +31,8 @@ class Tf_publisher(object):
                 marker_id = msg.names[i]
                 x = msg.x_points[i]
                 y = msg.y_points[i]
-                
-                listener = tf.TransformListener()
-                marker_frame = "marker_{}".format(marker_id)
-                listener.waitForTransform("cam_lens_link", marker_frame, rospy.Time(0), rospy.Duration(4.0))
-                if listener.canTransform("cam_lens_link", marker_frame, rospy.Time(0)):
-                    (trans, rot) = listener.lookupTransform("cam_lens_link", marker_frame, rospy.Time(0))
-                    self.aruco_all_pose[i] = [marker_id, x, y, trans[0], trans[1], trans[2]]
-                    print("done")
-                print(trans)
+                self.aruco_all_pose[i] = [marker_id, x, y]
+                print("done")
         else :
             self.aruco_all_pose = None
                 
@@ -62,7 +55,7 @@ class Tf_publisher(object):
                     seg_translation,
                     seg_quaternion,
                     rospy.Time.now(),
-                    "seg_{}".format(aruco_id),
+                    "{}".format(aruco_id),
                     "cam_lens_link"
                 )
                 

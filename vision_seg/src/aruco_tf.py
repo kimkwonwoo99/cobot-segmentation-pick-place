@@ -104,7 +104,7 @@ def callback(msg):
 
 def matrix_calculation_server():
     rospy.init_node('matrix_calculation_server')
-    rospy.Subscriber("aruco_seg_start", Int32, callback)
+    rospy.Subscriber("aruco_start", Int32, callback)
     rospy.spin()
 
 def main():

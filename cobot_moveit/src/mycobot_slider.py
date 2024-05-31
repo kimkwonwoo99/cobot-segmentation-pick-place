@@ -67,9 +67,9 @@ def state_callback(data):
         print("move stop")
 
 def cali_callback(data):
+    global state
     if data.value == 1 :
         print("i receive cali_service")
-        global state
         state = False
         proportional_control()
     return basic_serviceResponse(True)

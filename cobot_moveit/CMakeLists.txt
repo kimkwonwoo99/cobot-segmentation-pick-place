@@ -64,6 +64,7 @@ add_service_files(
   main_service_msg.srv
   basic_service.srv
   second_service_msg.srv
+  find_tf_service.srv
 )
 
 ## Generate actions in the 'action' folder
