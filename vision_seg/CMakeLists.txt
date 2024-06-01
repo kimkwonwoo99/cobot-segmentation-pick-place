@@ -21,6 +21,7 @@ find_package(OpenCV REQUIRED)
 add_message_files(
   FILES
   aruco_center.msg
+  seg_center.msg
 )
 
 ## Generate services in the 'srv' folder
@@ -112,6 +113,9 @@ catkin_install_python(PROGRAMS src/seg_pose.py
 DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
+catkin_install_python(PROGRAMS src/find_recent_pose.py
+DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
 ## either from message generation or dynamic reconfigure

@@ -63,16 +63,17 @@ def cali_service_start() :
     except rospy.ServiceException as e:
         print("Service call failed: %s" % e)
 
-def recent_tf_service_start(classname) :
+def recent_tf_service_start(classname):
     rospy.wait_for_service('recent_tf_service')
-    try :
+    try:
         recent_tf_service = rospy.ServiceProxy('recent_tf_service', find_tf_service)
         req = find_tf_serviceRequest()
         req.class_name = classname
         response = recent_tf_service(req)
+        return response.return_name
     except rospy.ServiceException as e:
         print("Service call failed: %s" % e)
-    return response
+        return None
         
 def move_to_pose(pose, ori):
     state_check_pub.publish(1)
@@ -119,7 +120,7 @@ def gripper_move(val) :
     
 def get_tf_position(name, x, y, z) :
     listener = tf.TransformListener()
-    marker_frame = name
+    marker_frame = "marker_" + name
     pose = None
     listener.waitForTransform("base", marker_frame, rospy.Time(0), rospy.Duration(4.0))
     if listener.canTransform("base", marker_frame, rospy.Time(0)):
@@ -128,7 +129,7 @@ def get_tf_position(name, x, y, z) :
     tmp_pose = {
         'x': pose[0] + x,
         'y': pose[1] + y,
-        'z': pose[2] - z
+        'z': pose[2] + z
     }
     return tmp_pose
 
@@ -138,20 +139,13 @@ def third_callback(request) :
     hanger_pose = hanger_position.get()
     gripper_move(10)
     
-    tmp_pose = {
-        'x': hanger_pose['x'] + 0.05,
-        'y': hanger_pose['y'],
-        'z': hanger_pose['z']
-    }
-    
-    move_to_pose(tmp_pose, pose_closet_orientation)
-    
-    time.sleep(1)
-    
     move_cobot_and_calib(hanger_pose, pose_closet_orientation)
     
+    # 여기서 cobot 직접 조종해서 그리퍼 위치 집어넣기
+    #함수 만들기
+    
     gripper_move(75)
-    move_to_pose(tmp_pose, pose_closet_orientation)
+    move_to_pose(hanger_pose, pose_closet_orientation)
     
     time.sleep(1)
     
@@ -168,24 +162,30 @@ def second_callback(request) :
     print("i return second_service")
     
     seg_start_pub.publish(request.class_name)
+    
+    time.sleep(2)
+    
+    
     recent_aruco = recent_tf_service_start(request.class_name)
+    print(recent_aruco)
     
-    find_pose = get_tf_position(recent_aruco, 0.5, 0, -0.3)
     
+    find_pose = get_tf_position(recent_aruco, 0.05, 0, -0.1)
     print(find_pose)
+    hanger_position.put(find_pose)
+    
     move_cobot_and_calib(find_pose, pose_closet_orientation)
     gripper_move(100)
     
     
-    tmp_pose = get_tf_position(recent_aruco, 0, 0, -0.3)
+    # 여기서 cobot 직접 조종해서 그리퍼 위치 집어넣기
+    #함수 만들기
     
-    print(tmp_pose)
     
-    hanger_position.put(tmp_pose)
     
     gripper_move(10)
     
-    move_to_pose(tmp_pose, pose_closet_orientation)
+    move_to_pose(find_pose, pose_closet_orientation)
     time.sleep(1)
     move_cobot_and_calib(pose_put_cloth_position, pose_person_orientation)
     gripper_move(75)

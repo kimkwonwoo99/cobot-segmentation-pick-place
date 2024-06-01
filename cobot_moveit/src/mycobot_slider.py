@@ -31,8 +31,8 @@ def proportional_control() :
         
         for i in range(6) :    #오차범위 이상일 시, 오차의 절반 보정
             if errors[i] > tolerance :
-                correction = (data_list[i] - comp_list[i]) / 2
-                new_angles[i] += correction
+                correction = (data_list[i] - comp_list[i])
+                new_angles[i] += correction * 0.4
         
         mc.send_angles(new_angles, 40)
         time.sleep(0.1)

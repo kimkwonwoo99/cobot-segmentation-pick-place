@@ -18,7 +18,7 @@ class Aruco(object):
         self.camera_matrix = np.array([[542.93802581, 0, 329.25053673], [0, 541.67327024, 256.79448482], [0, 0, 1]])  # 카메라 행렬로 설정
         self.dist_coeffs = np.array([[0.19266232, -0.79141779, -0.00253703, 0.00613584, 1.04252319]])  # 왜곡 계수로 설정
         self.tf_broadcaster = tf.TransformBroadcaster()
-        self.aruco_xy_publisher = rospy.Publisher("arco_cam_xy", aruco_center, queue_size=10)        
+        self.aruco_xy_publisher = rospy.Publisher("aruco_cam_xy", aruco_center, queue_size=10)        
         self.last_detect_position = {}
         self.image_sub = None
         self.image_state = False
@@ -61,7 +61,7 @@ class Aruco(object):
 
                 self.last_detect_position[marker_id[0]] = original_translation, original_quaternion
             
-            if len(names) == 2 :
+            if len(names) > 0 :
                 aruco_msg = aruco_center()
                 aruco_msg.names = names
                 aruco_msg.x_points = x_points

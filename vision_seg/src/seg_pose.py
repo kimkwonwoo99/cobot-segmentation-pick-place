@@ -2,7 +2,7 @@
 
 import rospy, cv2
 import numpy as np
-from vision_seg.msg import aruco_center
+from vision_seg.msg import *
 from sensor_msgs.msg import CompressedImage
 from cv_bridge import CvBridge
 from std_msgs.msg import Int32, String
@@ -16,7 +16,7 @@ class Segment(object):
         self.bridge = CvBridge()
         self.camera_matrix = np.array([[542.93802581, 0, 329.25053673], [0, 541.67327024, 256.79448482], [0, 0, 1]])  # 카메라 행렬로 설정
         self.dist_coeffs = np.array([[0.19266232, -0.79141779, -0.00253703, 0.00613584, 1.04252319]])  # 왜곡 계수로 설정
-        self.seg_xy_publisher = rospy.Publisher('/seg_cam_xy', aruco_center, queue_size=10)
+        self.seg_xy_publisher = rospy.Publisher('/seg_cam_xy', seg_center, queue_size=10)
         self.image_sub = None
         self.camera_mode = 'xy_mode'
         self.image_buffer = None
@@ -24,7 +24,7 @@ class Segment(object):
 
     def image_callback(self, msg):
         global model
-        
+        print(self.find_seg_class_name)
         np_arr = np.frombuffer(msg.data, np.uint8)
         cv2_img = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
         H, W, _ = cv2_img.shape
@@ -32,9 +32,6 @@ class Segment(object):
         results = model(undistorted_img)
         
         if results:
-            names = []
-            x_points = []
-            y_points = []
             for result in results:
                 if result.masks:  # 이 조건을 확인
                     for j, mask in enumerate(result.masks.data) :
@@ -61,12 +58,12 @@ class Segment(object):
                                 center_y = int((result.boxes.xyxy[j][1] + result.boxes.xyxy[j][3])/2)
                                 print(f"Object class: {cls_name}, Center: ({center_x}, {center_y}), Confidence: {confidences}")
                                 
-                                aruco_msg = aruco_center()
-                                aruco_msg.names = names
-                                aruco_msg.x_points = x_points
-                                aruco_msg.y_points = y_points
+                                seg_msg = seg_center()
+                                seg_msg.names = self.find_seg_class_name
+                                seg_msg.x_points = center_x
+                                seg_msg.y_points = center_y
 
-                                self.seg_xy_publisher.publish(aruco_msg)
+                                self.seg_xy_publisher.publish(seg_msg)
                         
                             elif self.camera_mode == 'seg_pub_mode' and self.image_buffer is not None :
                                 # rgba_img를 압축된 이미지로 변환
