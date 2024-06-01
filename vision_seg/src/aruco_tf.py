@@ -80,7 +80,7 @@ class Aruco(object):
                         quat,
                         rospy.Time.now(),
                         "marker_{}".format(marker_id),
-                        "cam_lens_link"
+                        "robotarm/cam_lens_link"
                     )
 
     def control_image_subscription(self, state):
