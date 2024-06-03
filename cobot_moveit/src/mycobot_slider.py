@@ -6,10 +6,6 @@ from std_msgs.msg import Int32
 from pymycobot.mycobot import MyCobot
 
 from cobot_moveit.srv import * 
-# from keras.models import load_model
-
-# 모델 로드
-# model = load_model('/home/choi/catkin_ws/src/dressme/cobot_moveit/src/my_model3')
 
 reword_list = [0, 0, 0, 0, 0, 0]  # 로봇암 이동 시, 전 값과의 오차를 저장하기 위한 리스트
 state = True

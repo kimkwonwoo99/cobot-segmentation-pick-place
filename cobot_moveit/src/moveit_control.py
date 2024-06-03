@@ -5,7 +5,7 @@ from moveit_msgs.msg import MoveItErrorCodes
 from geometry_msgs.msg import PoseStamped
 from std_msgs.msg import Int32, String
 from cobot_moveit.srv import *
-
+from std_srvs.srv import SetBool
 
 #옷장 바라보는 방향
 pose_closet_orientation = ({

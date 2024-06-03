@@ -1,5 +1,5 @@
 string mode
-string class_name
+float32 class_name
 ---
 bool success
 

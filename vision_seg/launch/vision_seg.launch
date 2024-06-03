@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+
+<launch>
+
+    <!-- Start the C++ node -->
+    <node name="cameraPub" pkg="vision_seg" type="cameraPub" output="screen" />
+
+    <node name="arucoTfPub" pkg="vision_seg" type="arucoTfPub" output="screen"/>
+    
+    <node name="findNearAruco" pkg="vision_seg" type="findNearAruco" output="screen" />
+
+    <node name="yolo_segment_server" pkg="vision_seg" type="seg_pose.py" output="screen"/>
+
+
+</launch>
