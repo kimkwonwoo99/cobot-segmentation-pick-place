@@ -10,58 +10,59 @@ public:
         aruco_all_pose.clear();
         if (msg->names.size() > 0) {
             for (size_t i = 0; i < msg->names.size(); ++i) {
-                float marker_id = msg->names[i];
+                std::string marker_id = msg->names[i];
                 float x = msg->x_points[i];
                 float y = msg->y_points[i];
                 aruco_all_pose.push_back({marker_id, x, y});
-                ROS_INFO("Aruco marker detected");
             }
         }
     }
 
     void segXYCallback(const vision_seg::seg_center::ConstPtr& msg) {
-        ROS_INFO("Seg marker detected");
-        seg_pose.push_back(msg->names);
-        seg_pose.push_back(msg->x_points);
-        seg_pose.push_back(msg->y_points);
+        // ROS_INFO("Seg marker detected");
+        seg_pose.push_back({msg->names, msg->x_points, msg->y_points});
     }
     void startServer() {
-        aruco_xy_sub = nh.subscribe("arco_cam_xy", 10, &Arucofinder::arucoXYCallback, this);
+        aruco_xy_sub = nh.subscribe("aruco_cam_xy", 10, &Arucofinder::arucoXYCallback, this);
         seg_xy_sub = nh.subscribe("seg_cam_xy", 10, &Arucofinder::segXYCallback, this);
-        ros::ServiceServer service = nh.advertiseService("aruco_seg_start", &Arucofinder::callback, this);
+        ros::ServiceServer service = nh.advertiseService("recent_tf_service", &Arucofinder::callback, this);
         ros::spin();
     }
 private:
     ros::NodeHandle nh;
     ros::Subscriber aruco_xy_sub;
     ros::Subscriber seg_xy_sub;
-    std::vector<std::vector<float>> aruco_all_pose;
-    std::vector<float> seg_pose;
+    std::vector<std::tuple<std::string, float, float>> aruco_all_pose;
+    std::vector<std::tuple<std::string, float, float>> seg_pose;
     bool server_state;
 
     bool callback(vision_seg::find_tf_service::Request &req, 
     vision_seg::find_tf_service::Response &res) {
-        float recent_id =findRecentAruco();
-        if (recent_id != -1) {
+        std::string recent_id =findRecentAruco();
+        ROS_INFO("recent_id: %s", req.class_name.c_str());
+        if (!recent_id.empty()) {
             res.return_name = recent_id;
-            ROS_INFO("i return recent_id %f", recent_id);
+            ROS_INFO("i return recent_id : %s", res.return_name.c_str());
             return true;
-        }
-        else {
+        }else {
             ROS_WARN("no aruco marker detected");
             return false;
         }
     }
 
-    int findRecentAruco(){
+    std::string findRecentAruco() {
         float min_val = std::numeric_limits<float>::max();
-        float recent_id = -1;
-        for(const auto& pose : aruco_all_pose){
-            float y_diff = pose[1] - seg_pose[1];
-            float tmp_val = abs(y_diff);
-            if(tmp_val < min_val){
-                min_val = tmp_val;
-                recent_id = pose[0];
+        std::string recent_id;
+        ROS_INFO("aruco_all_pose size: %d", aruco_all_pose.size());
+        ROS_INFO("seg_pose size: %d", seg_pose.size());
+        for (const auto& pose : aruco_all_pose) {
+            for (const auto& seg : seg_pose) {
+                float y_diff = std::get<1>(pose) - std::get<1>(seg); // y 좌표 차이 계산
+                float tmp_val = std::abs(y_diff);
+                if (tmp_val < min_val) {
+                    min_val = tmp_val;
+                    recent_id = std::get<0>(pose);
+                }
             }
         }
         return recent_id;

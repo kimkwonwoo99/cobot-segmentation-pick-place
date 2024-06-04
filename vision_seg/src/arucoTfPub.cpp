@@ -3,6 +3,8 @@
 #include <sensor_msgs/CompressedImage.h>
 #include <geometry_msgs/TransformStamped.h>
 #include <std_msgs/Int32.h>
+#include <std_msgs/Float32.h>
+#include <std_msgs/Float32MultiArray.h>
 #include <vision_seg/aruco_center.h>
 #include <opencv2/opencv.hpp>
 #include <opencv2/aruco.hpp>
@@ -28,6 +30,7 @@ public:
     void startServer() {
         image_sub = nh.subscribe("camera/arm/compressed", 1, &Aruco::image_callback, this);
         aruco_start = nh.subscribe("aruco_start", 1, &Aruco::aruco_callback, this);
+        test_sub = nh.subscribe("nearArucoTrigger", 1, &Aruco::trigger_callback, this);
         ros::spin();
     }
 
@@ -52,6 +55,12 @@ public:
         transform_stamped.transform.rotation.z = quaternion.z();
         transform_stamped.transform.rotation.w = quaternion.w();
     }
+
+    void trigger_callback(const std_msgs::Float32::ConstPtr& msg) {
+        arucoStart2 = !arucoStart2;
+        findArucoID = msg->data;
+    }
+
     void aruco_callback(const std_msgs::Int32::ConstPtr& msg) {
         if(msg->data == 1) {
             ROS_INFO("Aruco Start");
@@ -79,7 +88,7 @@ public:
 
                 matrix_to_transform(rvecs[i], tvecs[i], transform_stamped);
 
-                aruco_msg.names.push_back(markerIds[i]);
+                aruco_msg.names.push_back(std::to_string(markerIds[i]));
                 aruco_msg.x_points.push_back((markerCorners[i][0].x + markerCorners[i][2].x) / 2);
                 aruco_msg.y_points.push_back((markerCorners[i][0].y + markerCorners[i][2].y) / 2);
 
@@ -87,6 +96,13 @@ public:
                 transform_stamped.header.frame_id = "robotarm/cam_lens_link";
                 transform_stamped.child_frame_id = "marker_" + std::to_string(markerIds[i]);
                 tf_broadcaster->sendTransform(transform_stamped);
+
+                if(arucoStart2 && findArucoID == markerIds[i]) {
+                    tvecs_publisher.publish(tvecs[i]);
+                }
+                ROS_INFO("Marker ID: %s", aruco_msg.names[i].c_str());
+                ROS_INFO("X: %f", aruco_msg.x_points[i]);
+                ROS_INFO("Y: %f", aruco_msg.y_points[i]);
             }
             aruco_xy_publisher.publish(aruco_msg);
         }
@@ -95,10 +111,13 @@ private:
     ros::NodeHandle nh;
     ros::Subscriber image_sub;
     ros::Subscriber aruco_start;
+    ros::Subscriber test_sub;
     ros::Publisher aruco_xy_publisher;
+    ros::Publisher tvecs_publisher = nh.advertise<std_msgs::Float32MultiArray>("aruco_tvecs", 10);
     std::shared_ptr<tf::TransformBroadcaster> tf_broadcaster;
     bool image_state = false;
-
+    bool arucoStart2 = false;
+    int findArucoID;
     const float MARKERLEN;
     cv::Ptr<cv::aruco::Dictionary> DICT_GET;
     cv::Ptr<cv::aruco::DetectorParameters> ARUCO_PARAMETERS;
@@ -107,7 +126,6 @@ private:
     std::vector<double> camera_matrix_data;
     std::vector<double> dist_coeffs_data;
 };
-
 
 int main(int argc, char** argv) {
     ros::init(argc, argv, "arucoTfPub");

@@ -19,20 +19,20 @@
     </collision>
   </link>
 
-  <!-- <link name="closet">
+  <link name="closet">
     <visual>
       <geometry>
-       <mesh filename="package://mycobot_description/urdf/mycobot_320_m5_2022/closet.dae"/>
+       <mesh filename="package://mycobot_description/urdf/mycobot_320_m5_2022/dressme.dae"/>
       </geometry>
-    <origin xyz = "0 0 0 " rpy = " -1.5708 0 3.1416"/>
+    <origin xyz = "0 0 0 " rpy = " 0 0 0"/>
     </visual>
     <collision>
       <geometry>
-      <mesh filename="package://mycobot_description/urdf/mycobot_320_m5_2022/closet.dae"/>
+        <box size="1.040 0.4 0.0045"/>
       </geometry>
-    <origin xyz = "0 0 0 " rpy = " -1.5708 0 3.1416"/>
+    <origin xyz = "0 0 0 " rpy = " 0 0 0"/>
     </collision>
-  </link> -->
+  </link>
 
   <link name="link1">
     <visual>
@@ -263,12 +263,11 @@
     </collision>
   </link>
 
-
-  <!-- <joint name="base_to_closet" type="fixed">
+  <joint name="base_to_closet" type="fixed">
     <parent link="base"/>
     <child link="closet"/>
-    <origin xyz= "0 0 0.155" rpy = "0 0 0 "/>
-  </joint> -->
+    <origin xyz= "-0.4 0 0.155" rpy = "0 0 1.5708 "/>
+  </joint>
 
 
   <joint name="joint2_to_joint1" type="revolute">

@@ -3,9 +3,9 @@ import sys, rospy, moveit_commander, time, tf, queue
 import geometry_msgs.msg
 from moveit_msgs.msg import MoveItErrorCodes
 from geometry_msgs.msg import PoseStamped
-from std_msgs.msg import Int32, String
+from std_msgs.msg import Int32, String, Float32
 from cobot_moveit.srv import *
-from std_srvs.srv import SetBool
+from std_srvs.srv import Empty, EmptyResponse
 
 #옷장 바라보는 방향
 pose_closet_orientation = ({
@@ -29,9 +29,9 @@ pose_basic_orientation = ({
     'w' : 0.0
 })
 pose_find_closet_position = ({
-    'x' : 0.0,
-    'y' : -0.08,
-    'z' : 0.4
+    'x' : 0.03,
+    'y' : -0.05,
+    'z' : 0.35
 })
 pose_put_cloth_position = ({
     'x' : 0.25,
@@ -51,6 +51,7 @@ gripper_service = None
 start_state = False
 hanger_position = queue.Queue()
 second_put_mode = None
+test_pub = None
 
 def cali_service_start() :
     rospy.wait_for_service('calibrate_service')
@@ -70,6 +71,7 @@ def recent_tf_service_start(classname):
         req = find_tf_serviceRequest()
         req.class_name = classname
         response = recent_tf_service(req)
+        print(response.return_name)
         return response.return_name
     except rospy.ServiceException as e:
         print("Service call failed: %s" % e)
@@ -118,13 +120,24 @@ def gripper_move(val) :
     except rospy.ServiceException as e:
         print("Service call failed: %s" % e)
     
+def chase_aruco(name) :
+    test_pub.publish(name)
+    rospy.wait_for_service('chase_aruco_service')
+    try:
+        chase_aruco_service = rospy.ServiceProxy('chase_aruco_service', Empty)
+        response = chase_aruco_service()
+        rospy.loginfo("Service call successful")
+    except rospy.ServiceException as e:
+        rospy.logerr("Service call failed: %s"%e)
+
 def get_tf_position(name, x, y, z) :
     listener = tf.TransformListener()
     marker_frame = "marker_" + name
+    print(marker_frame)
     pose = None
-    listener.waitForTransform("base", marker_frame, rospy.Time(0), rospy.Duration(4.0))
-    if listener.canTransform("base", marker_frame, rospy.Time(0)):
-        (trans, rot) = listener.lookupTransform("base", marker_frame, rospy.Time(0))
+    listener.waitForTransform("robotarm/base", marker_frame, rospy.Time(0), rospy.Duration(4.0))
+    if listener.canTransform("robotarm/base", marker_frame, rospy.Time(0)):
+        (trans, rot) = listener.lookupTransform("robotarm/base", marker_frame, rospy.Time(0))
         pose = trans[0], trans[1], trans[2]
     tmp_pose = {
         'x': pose[0] + x,
@@ -132,6 +145,7 @@ def get_tf_position(name, x, y, z) :
         'z': pose[2] + z
     }
     return tmp_pose
+
 
 def third_callback(request) :
     global hanger_position
@@ -141,7 +155,7 @@ def third_callback(request) :
     
     move_cobot_and_calib(hanger_pose, pose_closet_orientation)
     
-    # 여기서 cobot 직접 조종해서 그리퍼 위치 집어넣기
+    # .publish(1)
     #함수 만들기
     
     gripper_move(75)
@@ -156,27 +170,30 @@ def third_callback(request) :
     rospy.loginfo("Returning success: %s (type: %s)", True, type(True))        
     return basic_serviceResponse(True)  # 수신완료 리턴
 
-
 def second_callback(request) :
     global hanger_position
     print("i return second_service")
+    print(request.class_name)
     
     seg_start_pub.publish(request.class_name)
-    
+    print("seg_start_pub")
     time.sleep(2)
     
     
     recent_aruco = recent_tf_service_start(request.class_name)
     print(recent_aruco)
     
-    
-    find_pose = get_tf_position(recent_aruco, 0.05, 0, -0.1)
+    find_pose = get_tf_position(recent_aruco, 0.1, 0, -0.1)
     print(find_pose)
     hanger_position.put(find_pose)
     
     move_cobot_and_calib(find_pose, pose_closet_orientation)
     gripper_move(100)
     
+    
+    
+    
+    # chase_aruco(recent_aruco)
     
     # 여기서 cobot 직접 조종해서 그리퍼 위치 집어넣기
     #함수 만들기
@@ -213,14 +230,14 @@ def robotarm_main_callback(request) :
     return main_service_msgResponse(success)  # 수신완료 리턴
 
 def main():
-    global state_check_pub, start_state, aruco_start_pub, seg_start_pub
+    global state_check_pub, start_state, aruco_start_pub, seg_start_pub, test_pub
 
     # ROS 노드 초기화
     rospy.init_node('dressme_moveit_node', anonymous=True)
     state_check_pub = rospy.Publisher("state_check", Int32, queue_size=10)
     aruco_start_pub = rospy.Publisher("aruco_start", Int32, queue_size=10)
     seg_start_pub = rospy.Publisher("seg_start", String, queue_size=10)
-    
+    test_pub = rospy.Publisher("nearArcuoTrigger", Int32, queue_size=10)
     
     main_server = rospy.Service("robotarm_action_service", main_service_msg, robotarm_main_callback)
     second_service = rospy.Service("second_service", second_service_msg, second_callback)

@@ -2,17 +2,19 @@
 # -*- coding:utf-8 -*-
 import math, time, rospy
 from sensor_msgs.msg import JointState
-from std_msgs.msg import Int32
+from std_msgs.msg import Int32, Float32MultiArray, Float32
+from std_srvs.srv import Empty, EmptyRequest
 from pymycobot.mycobot import MyCobot
 
 from cobot_moveit.srv import * 
 
 reword_list = [0, 0, 0, 0, 0, 0]  # 로봇암 이동 시, 전 값과의 오차를 저장하기 위한 리스트
+coor_list = None
 state = True
 mc = None
 data_list = None
 def proportional_control() :
-    global mc, data_list, state
+    global mc, data_list, state, coor_list
     tolerance = 0.5
     new_angles = list(data_list)  # 마지막으로 수신한 joint_state 값을 저장
     
@@ -28,7 +30,7 @@ def proportional_control() :
         for i in range(6) :    #오차범위 이상일 시, 오차의 절반 보정
             if errors[i] > tolerance :
                 correction = (data_list[i] - comp_list[i])
-                new_angles[i] += correction * 0.4
+                new_angles[i] += correction * 0.5
         
         mc.send_angles(new_angles, 40)
         time.sleep(0.1)
@@ -54,7 +56,7 @@ def callback(data):
         print("get_angles", get_angle_list)
         for i in range(6):
             reword_list[i] = 0  # 각 데이터 샘플마다 reword_list 초기화
-            reword_list[i] = round((tmp_list[i] - get_angle_list[i]) * 0.5,3)     #오차의 절반을 리워드로 설정.
+            reword_list[i] = round((tmp_list[i] - get_angle_list[i]) * 0.4,3)     #오차의 절반을 리워드로 설정.
         
 def state_callback(data):
     global state
@@ -79,6 +81,34 @@ def gripper_callback(data):
     rospy.loginfo("gripper value is %d", data.value)
     return basic_serviceResponse(True)
 
+def test_callback(data):
+    global state
+    state = False
+
+def aruco_callback(data):
+    global coor_list
+    xyz = list(data.data)
+    if abs(xyz[0]) + abs(xyz[1]) < 2 :
+        if xyz[2] < 5 :
+            return True
+        else : 
+            mc.send_coords([coor_list[0]-1, coor_list[1], coor_list[2], -180 , 90, 0],  40)
+    else :
+        coor_list[1] = coor_list[1] + xyz[0] * 0.5
+        coor_list[2] = coor_list[2] + xyz[1] * 0.5
+        mc.send_coords([coor_list[0], coor_list[1], coor_list[2], -180 , 90, 0],  20)
+    
+
+def empty_callback(data):
+    global coor_list
+    tmp_list = mc.get_coords()
+    coor_list = [tmp_list[0], tmp_list[1], tmp_list[2]]
+    while True :
+        check = rospy.Subscriber("aruco_tvecs", Float32MultiArray, aruco_callback)
+        if check :
+            break
+    return True
+    
 def listener():
     global mc
     port = rospy.get_param("~port", "/dev/ttyACM0")
@@ -93,6 +123,8 @@ def listener():
     #moveit에서의 이동 완료 시 수신, moveit과의 연결을 끊음.
     rospy.Subscriber("state_check", Int32 , state_callback)
     
+    
+    rospy.Service('my_service', Empty, empty_callback)
     #수신하는 joint_state와 실제 로봇암을 일치시켜주기 위한 서비스
     rospy.Service("calibrate_service", basic_service , cali_callback)
     

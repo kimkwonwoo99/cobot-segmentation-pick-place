@@ -9,7 +9,7 @@ from std_msgs.msg import Int32, String
 from ultralytics import YOLO
 from vision_seg.srv import *
 
-model = YOLO("/home/choi/catkin_ws/src/dressme/vision_seg/src/dressme_final.pt")
+model = YOLO("/home/choi/catkin_ws/src/dressme/vision_seg/src/best.pt")
 
 class Segment(object):
     def __init__(self):
@@ -62,7 +62,6 @@ class Segment(object):
                                 seg_msg.names = self.find_seg_class_name
                                 seg_msg.x_points = center_x
                                 seg_msg.y_points = center_y
-
                                 self.seg_xy_publisher.publish(seg_msg)
                         
                             elif self.camera_mode == 'seg_pub_mode' and self.image_buffer is not None :
