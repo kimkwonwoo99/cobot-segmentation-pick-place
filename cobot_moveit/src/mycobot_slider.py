@@ -3,7 +3,7 @@
 import math, time, rospy
 from sensor_msgs.msg import JointState
 from std_msgs.msg import Int32, Float32MultiArray, Float32
-from std_srvs.srv import Empty, EmptyRequest
+from std_srvs.srv import Empty, EmptyResponse
 from pymycobot.mycobot import MyCobot
 
 from cobot_moveit.srv import * 
@@ -13,6 +13,7 @@ coor_list = None
 state = True
 mc = None
 data_list = None
+tvecs_state = None
 def proportional_control() :
     global mc, data_list, state, coor_list
     tolerance = 0.5
@@ -44,12 +45,12 @@ def callback(data):
         for index, value in enumerate(data.position):         #라디안으로 수신한 값을, angle로 변경.
             radians_to_angles = round(math.degrees(value), 2)
             data_list.append(radians_to_angles)
-        # predicted_angles = model.predict([data_list])
         print("data_list", data_list)
+        
         for i in range(6):
             tmp_list[i] = data_list[i] + reword_list[i]     #직전값에서 생성한 보상값을 더함.
         print("sub_angles", tmp_list)
-        # mc.send_angles(predicted_angles.tolist()[0], 40)  # numpy 배열을 리스트로 변환하여 전달        
+        
         mc.send_angles(tmp_list, 40)                        #수정된 리스트를 로봇암에 전송
         time.sleep(0.03)
         get_angle_list = mc.get_angles()
@@ -72,7 +73,7 @@ def cali_callback(data):
         proportional_control()
     return basic_serviceResponse(True)
     
-def gripper_callback(data):
+def gripper_callback(data):     #그리퍼 동작 서비스
     print("i receive gripper_service")
     mc.set_gripper_mode(0)
     mc.set_eletric_gripper(0)
@@ -86,28 +87,38 @@ def test_callback(data):
     state = False
 
 def aruco_callback(data):
-    global coor_list
+    global coor_list, tvecs_state, mc
     xyz = list(data.data)
-    if abs(xyz[0]) + abs(xyz[1]) < 2 :
-        if xyz[2] < 5 :
-            return True
+    print(xyz)
+    if abs(xyz[0]) + abs(xyz[1]) < 0.01 :
+        if xyz[2] < 0.05 :
+            tvecs_state = True
         else : 
-            mc.send_coords([coor_list[0]-1, coor_list[1], coor_list[2], -180 , 90, 0],  40)
+            mc.send_coords([coor_list[0]-1, coor_list[1], coor_list[2], 10 , 90, -170], 40, 1)
     else :
-        coor_list[1] = coor_list[1] + xyz[0] * 0.5
-        coor_list[2] = coor_list[2] + xyz[1] * 0.5
-        mc.send_coords([coor_list[0], coor_list[1], coor_list[2], -180 , 90, 0],  20)
+        if xyz[0] > 0 :
+            coor_list[1] = coor_list[1] + 1
+        else :
+            coor_list[1] = coor_list[1] - 1
+        if xyz[1] > 0 :
+            coor_list[2]= coor_list[2] + 1
+        else :
+            coor_list[2] = coor_list[2] - 1
+        asdf = [coor_list[0], coor_list[1], coor_list[2], 10 , 90, -170]
+        print(asdf)
+        mc.send_coords(asdf, 20, 1)
     
 
 def empty_callback(data):
-    global coor_list
+    global coor_list, tvecs_state
     tmp_list = mc.get_coords()
     coor_list = [tmp_list[0], tmp_list[1], tmp_list[2]]
     while True :
-        check = rospy.Subscriber("aruco_tvecs", Float32MultiArray, aruco_callback)
-        if check :
+        rospy.Subscriber("aruco_tvecs", Float32MultiArray, aruco_callback)
+        if tvecs_state :
             break
-    return True
+    tvecs_state = False
+    return EmptyResponse()
     
 def listener():
     global mc
@@ -124,7 +135,7 @@ def listener():
     rospy.Subscriber("state_check", Int32 , state_callback)
     
     
-    rospy.Service('my_service', Empty, empty_callback)
+    rospy.Service('chase_aruco_service', Empty, empty_callback)
     #수신하는 joint_state와 실제 로봇암을 일치시켜주기 위한 서비스
     rospy.Service("calibrate_service", basic_service , cali_callback)
     

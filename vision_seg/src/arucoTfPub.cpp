@@ -13,8 +13,8 @@
 
 class Aruco {
 public:
-    Aruco() : MARKERLEN(0.05){
-        DICT_GET = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_6X6_250);  // marker 5x5_1000
+    Aruco() : MARKERLEN(0.037){
+        DICT_GET = cv::aruco::getPredefinedDictionary(cv::aruco::DICT_6X6_250);  // 
         ARUCO_PARAMETERS = cv::aruco::DetectorParameters::create();
         
         double camera_matrix_data[3][3] = {{542.93802581, 0, 329.25053673}, {0, 541.67327024, 256.79448482}, {0, 0, 1}};  // 카메라 행렬로 설정
@@ -30,7 +30,6 @@ public:
     void startServer() {
         image_sub = nh.subscribe("camera/arm/compressed", 1, &Aruco::image_callback, this);
         aruco_start = nh.subscribe("aruco_start", 1, &Aruco::aruco_callback, this);
-        test_sub = nh.subscribe("nearArucoTrigger", 1, &Aruco::trigger_callback, this);
         ros::spin();
     }
 
@@ -56,8 +55,8 @@ public:
         transform_stamped.transform.rotation.w = quaternion.w();
     }
 
-    void trigger_callback(const std_msgs::Float32::ConstPtr& msg) {
-        arucoStart2 = !arucoStart2;
+    void trigger_callback(const std_msgs::Int32::ConstPtr& msg) {
+        arucoStart2 = true;
         findArucoID = msg->data;
     }
 
@@ -92,15 +91,13 @@ public:
                 aruco_msg.x_points.push_back((markerCorners[i][0].x + markerCorners[i][2].x) / 2);
                 aruco_msg.y_points.push_back((markerCorners[i][0].y + markerCorners[i][2].y) / 2);
 
+                std::string frame_id = "marker_" + std::to_string(markerIds[i]);
                 transform_stamped.header.stamp = ros::Time::now();
                 transform_stamped.header.frame_id = "robotarm/cam_lens_link";
-                transform_stamped.child_frame_id = "marker_" + std::to_string(markerIds[i]);
+                transform_stamped.child_frame_id = frame_id;
                 tf_broadcaster->sendTransform(transform_stamped);
 
-                if(arucoStart2 && findArucoID == markerIds[i]) {
-                    tvecs_publisher.publish(tvecs[i]);
-                }
-                ROS_INFO("Marker ID: %s", aruco_msg.names[i].c_str());
+                ROS_INFO("Marker ID: %d", findArucoID);
                 ROS_INFO("X: %f", aruco_msg.x_points[i]);
                 ROS_INFO("Y: %f", aruco_msg.y_points[i]);
             }

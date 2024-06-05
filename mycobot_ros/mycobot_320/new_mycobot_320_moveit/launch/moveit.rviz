@@ -326,7 +326,7 @@ Visualization Manager:
       Name: Current View
       Near Clip Distance: 0.009999999776482582
       Pitch: 0.6297968626022339
-      Target Frame: base
+      Target Frame: robotarm/base
       Yaw: 5.8449506759643555
     Saved: ~
 Window Geometry:

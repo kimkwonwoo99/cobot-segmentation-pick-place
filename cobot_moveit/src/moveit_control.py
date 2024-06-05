@@ -52,6 +52,7 @@ start_state = False
 hanger_position = queue.Queue()
 second_put_mode = None
 test_pub = None
+test_name = None
 
 def cali_service_start() :
     rospy.wait_for_service('calibrate_service')
@@ -88,7 +89,7 @@ def move_to_pose(pose, ori):
     arm_group = moveit_commander.MoveGroupCommander("arm_group")
     arm_group.set_planner_id("RRTConnectkConfigDefault")
     # 계획 시도 횟수 설정
-    arm_group.set_num_planning_attempts(30)
+    arm_group.set_num_planning_attempts(20)
     
     pose_goal = geometry_msgs.msg.Pose()
     pose_goal.position = geometry_msgs.msg.Point(**pose)
@@ -120,16 +121,6 @@ def gripper_move(val) :
     except rospy.ServiceException as e:
         print("Service call failed: %s" % e)
     
-def chase_aruco(name) :
-    test_pub.publish(name)
-    rospy.wait_for_service('chase_aruco_service')
-    try:
-        chase_aruco_service = rospy.ServiceProxy('chase_aruco_service', Empty)
-        response = chase_aruco_service()
-        rospy.loginfo("Service call successful")
-    except rospy.ServiceException as e:
-        rospy.logerr("Service call failed: %s"%e)
-
 def get_tf_position(name, x, y, z) :
     listener = tf.TransformListener()
     marker_frame = "marker_" + name
@@ -183,26 +174,27 @@ def second_callback(request) :
     recent_aruco = recent_tf_service_start(request.class_name)
     print(recent_aruco)
     
-    find_pose = get_tf_position(recent_aruco, 0.1, 0, -0.1)
+    
+    #중간지점찾기
+    find_pose = get_tf_position(recent_aruco, 0.05, 0, -0.1)
     print(find_pose)
+    
+    #큐 집어넣기
     hanger_position.put(find_pose)
     
+    #중간지점 이동
     move_cobot_and_calib(find_pose, pose_closet_orientation)
     gripper_move(100)
     
+    #들어가는 지점 찾기
+    find_pose2= get_tf_position(recent_aruco, 0, 0, -0.1)
+    #들어가기
+    move_to_pose(find_pose2, pose_closet_orientation)
+    #그리퍼 열기
+    gripper_move(5)
     
-    
-    
-    # chase_aruco(recent_aruco)
-    
-    # 여기서 cobot 직접 조종해서 그리퍼 위치 집어넣기
-    #함수 만들기
-    
-    
-    
-    gripper_move(10)
-    
-    move_to_pose(find_pose, pose_closet_orientation)
+    find_pose3 = [find_pose2[0]+0.1, find_pose2[1], find_pose2[2]]
+    move_to_pose(find_pose3, pose_closet_orientation)
     time.sleep(1)
     move_cobot_and_calib(pose_put_cloth_position, pose_person_orientation)
     gripper_move(75)
@@ -237,7 +229,7 @@ def main():
     state_check_pub = rospy.Publisher("state_check", Int32, queue_size=10)
     aruco_start_pub = rospy.Publisher("aruco_start", Int32, queue_size=10)
     seg_start_pub = rospy.Publisher("seg_start", String, queue_size=10)
-    test_pub = rospy.Publisher("nearArcuoTrigger", Int32, queue_size=10)
+    test_pub = rospy.Publisher("aruco_trigger", Int32, queue_size=10)
     
     main_server = rospy.Service("robotarm_action_service", main_service_msg, robotarm_main_callback)
     second_service = rospy.Service("second_service", second_service_msg, second_callback)
