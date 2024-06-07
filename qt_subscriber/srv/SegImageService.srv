@@ -1,0 +1,4 @@
+sensor_msgs/CompressedImage image
+string class_name
+---
+bool success
