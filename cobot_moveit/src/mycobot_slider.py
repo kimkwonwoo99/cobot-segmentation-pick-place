@@ -73,12 +73,16 @@ def cali_callback(data):
         proportional_control()
     return basic_serviceResponse(True)
     
-def gripper_callback(data):     #그리퍼 동작 서비스
+def gripper_callback(data):
+    global mc
+    #그리퍼 동작 서비스
     print("i receive gripper_service")
     mc.set_gripper_mode(0)
-    mc.set_eletric_gripper(0)
+    mc.init_eletric_gripper()
+    time.sleep(0.7)
+    mc.set_eletric_gripper(1)
     mc.set_gripper_value(data.value,50)
-    time.sleep(2)
+    time.sleep(1)
     rospy.loginfo("gripper value is %d", data.value)
     return basic_serviceResponse(True)
 

@@ -94,6 +94,10 @@ catkin_install_python(PROGRAMS src/seg_pose.py
 DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
+catkin_install_python(PROGRAMS src/plcControl.py
+DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
+
 add_executable(cameraPub src/cameraPub.cpp)
 target_link_libraries(cameraPub ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
 

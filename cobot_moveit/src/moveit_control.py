@@ -53,7 +53,8 @@ hanger_position = queue.Queue()
 second_put_mode = None
 test_pub = None
 test_name = None
-
+plc_controller = None
+recent_aruco = None
 def cali_service_start() :
     rospy.wait_for_service('calibrate_service')
     try :
@@ -137,23 +138,33 @@ def get_tf_position(name, x, y, z) :
     }
     return tmp_pose
 
+def find_pose(pose , x, y, z) :
+    tmp_pose = {
+        'x' : pose['x'] + x,
+        'y' : pose['y'] + y,
+        'z' : pose['z'] + z
+    }
+    return tmp_pose
 
 def third_callback(request) :
-    global hanger_position
+    global hanger_position, recent_aruco
     
-    hanger_pose = hanger_position.get()
-    gripper_move(10)
+    recent_aruco = hanger_position.get()
+    gripper_move(5)
+    tmp_pose = find_pose(recent_aruco, 0.05, 0, -0.1)
+    tmp_pose2 = find_pose(recent_aruco, 0, 0, -0.1)
+    tmp_pose3 = find_pose(recent_aruco, 0,0,-0.7)
+    tmp_pose4 = find_pose(recent_aruco, 0.05, 0, -0.7)
+    move_cobot_and_calib(pose_find_closet_position, pose_closet_orientation)
     
-    move_cobot_and_calib(hanger_pose, pose_closet_orientation)
-    
-    # .publish(1)
-    #함수 만들기
-    
+    move_cobot_and_calib(tmp_pose4, pose_closet_orientation)
+    move_cobot_and_calib(tmp_pose2, pose_closet_orientation)
     gripper_move(75)
-    move_to_pose(hanger_pose, pose_closet_orientation)
     
-    time.sleep(1)
-    
+    move_cobot_and_calib(tmp_pose2, pose_closet_orientation)
+
+    move_cobot_and_calib(tmp_pose, pose_closet_orientation)
+
     move_cobot_and_calib(pose_find_closet_position, pose_closet_orientation)
     
     hanger_position.queue.clear()
@@ -161,8 +172,11 @@ def third_callback(request) :
     rospy.loginfo("Returning success: %s (type: %s)", True, type(True))        
     return basic_serviceResponse(True)  # 수신완료 리턴
 
+
+        
 def second_callback(request) :
-    global hanger_position
+    global hanger_position, recent_aruco
+    plc_controller.publish("cw")
     print("i return second_service")
     print(request.class_name)
     
@@ -173,29 +187,25 @@ def second_callback(request) :
     
     recent_aruco = recent_tf_service_start(request.class_name)
     print(recent_aruco)
-    
-    
-    #중간지점찾기
-    find_pose = get_tf_position(recent_aruco, 0.05, 0, -0.1)
-    print(find_pose)
-    
-    #큐 집어넣기
-    hanger_position.put(find_pose)
-    
-    #중간지점 이동
-    move_cobot_and_calib(find_pose, pose_closet_orientation)
-    gripper_move(100)
+    find_aruco_pose = get_tf_position(recent_aruco, 0,0,0)
+    hanger_position.put(find_aruco_pose)
+    tmp_pose = find_pose(find_aruco_pose, 0.05, 0, -0.1)
+    tmp_pose2 = find_pose(find_aruco_pose, 0, 0, -0.1)
+    tmp_pose3 = find_pose(find_aruco_pose, 0,0,-0.7)
+    tmp_pose4 = find_pose(find_aruco_pose, 0.05, 0, -0.7)
+    move_cobot_and_calib(tmp_pose, pose_closet_orientation)
+    #그리퍼 열기
+    gripper_move(90)
     
     #들어가는 지점 찾기
-    find_pose2= get_tf_position(recent_aruco, 0, 0, -0.1)
     #들어가기
-    move_to_pose(find_pose2, pose_closet_orientation)
-    #그리퍼 열기
+    move_cobot_and_calib(tmp_pose2, pose_closet_orientation)
+    #그리퍼 닫기
     gripper_move(5)
+    move_cobot_and_calib(tmp_pose3, pose_closet_orientation)
     
-    find_pose3 = [find_pose2[0]+0.1, find_pose2[1], find_pose2[2]]
-    move_to_pose(find_pose3, pose_closet_orientation)
-    time.sleep(1)
+    move_cobot_and_calib(tmp_pose4, pose_closet_orientation)
+    
     move_cobot_and_calib(pose_put_cloth_position, pose_person_orientation)
     gripper_move(75)
     
@@ -222,7 +232,7 @@ def robotarm_main_callback(request) :
     return main_service_msgResponse(success)  # 수신완료 리턴
 
 def main():
-    global state_check_pub, start_state, aruco_start_pub, seg_start_pub, test_pub
+    global state_check_pub, start_state, aruco_start_pub, seg_start_pub, test_pub, plc_controller
 
     # ROS 노드 초기화
     rospy.init_node('dressme_moveit_node', anonymous=True)
@@ -230,6 +240,7 @@ def main():
     aruco_start_pub = rospy.Publisher("aruco_start", Int32, queue_size=10)
     seg_start_pub = rospy.Publisher("seg_start", String, queue_size=10)
     test_pub = rospy.Publisher("aruco_trigger", Int32, queue_size=10)
+    plc_controller = rospy.Publisher('plc_control', String, queue_size=10)
     
     main_server = rospy.Service("robotarm_action_service", main_service_msg, robotarm_main_callback)
     second_service = rospy.Service("second_service", second_service_msg, second_callback)
